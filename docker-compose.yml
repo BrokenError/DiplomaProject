@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  db:
+    container_name: db_techzone
+    image: postgres
+    environment:
+      POSTGRES_USER: techzone
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: techzone
+      POSTGRES_PORT: 5432
+    volumes:
+      - ./techzone/postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - techzone
+
+  techzone:
+    container_name: service_techzone
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./src:/src
+    ports:
+      - "8001:8001"
+    depends_on:
+      - db
+    restart: always
+    command: bash entrypoint.sh
+    networks:
+      - techzone
+
+networks:
+  techzone:
