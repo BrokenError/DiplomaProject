@@ -1,0 +1,26 @@
+.idea/
+.vscode/
+.env
+logs/*.log
+*.log
+media
+venv
+*.DS_Store
+
+# deploy
+.gitmodules
+
+# byte-compiled
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache
+
+# mypy
+.mypy_cache/
+
+# C extensions
+*.so
+
+# coverage file
+src/.coverage
