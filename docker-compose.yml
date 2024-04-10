@@ -34,5 +34,20 @@ services:
     networks:
       - techzone
 
+  nginx:
+    container_name: nginx_techzone
+    build:
+      context: src/
+      dockerfile: nginx/Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: always
+    volumes:
+      - ./techzone/letsencrypt:/etc/letsencrypt
+    networks:
+      - techzone
+
 networks:
   techzone:
+    driver: bridge
