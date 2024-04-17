@@ -4,6 +4,7 @@ from apps.accessories.schemas import AccessoryList, AccessoryOut
 from apps.accessories.services import AccessoryService
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.pagination.utils import get_pagination
+from apps.favourites.services import FavouriteService
 
 router = APIRouter(prefix='/accessories', tags=['Accessories'])
 
@@ -16,11 +17,13 @@ router = APIRouter(prefix='/accessories', tags=['Accessories'])
     tags=['Accessories']
 )
 async def get_list(
-        accessory_service: AccessoryService = Depends(AccessoryService.from_request),
+        accessory_service: AccessoryService = Depends(AccessoryService.from_request_protected),
+        favourite_service: FavouriteService = Depends(FavouriteService.from_request_protected),
         pagination: Pagination = Depends(get_pagination),
 ) -> AccessoryList:
-    return await accessory_service.list(
-        pagination=pagination
+    return await accessory_service.list_product(
+        pagination=pagination,
+        favourite_service=favourite_service,
     )
 
 
@@ -28,12 +31,15 @@ async def get_list(
     path='/{id_accessory}',
     name='Get accessory',
     description='Get accessory',
-    operation_id='Get accessory',
     tags=['Accessories'],
     response_model=AccessoryOut
 )
 async def get(
         id_accessory: int,
-        accessory_service: AccessoryService = Depends(AccessoryService.from_request)
+        accessory_service: AccessoryService = Depends(AccessoryService.from_request_protected),
+        favourite_service: FavouriteService = Depends(FavouriteService.from_request_protected)
 ) -> AccessoryOut:
-    return await accessory_service.get(id_instance=id_accessory)
+    return await accessory_service.get_product(
+        id_instance=id_accessory,
+        favourite_service=favourite_service,
+    )

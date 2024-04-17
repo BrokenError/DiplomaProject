@@ -1,16 +1,15 @@
 """initial
 
-Revision ID: 87bd08c733ce
+Revision ID: 938965787fb4
 Revises: 
-Create Date: 2024-04-09 12:38:08.864897
+Create Date: 2024-04-17 15:09:49.752056
 
 """
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '87bd08c733ce'
+revision = '938965787fb4'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -49,6 +48,7 @@ def upgrade():
     sa.Column('id_user', sa.Integer(), nullable=False),
     sa.Column('description', sa.String(), nullable=True),
     sa.Column('status', sa.String(), nullable=False),
+    sa.Column('is_deleted', sa.Boolean(), nullable=False),
     sa.ForeignKeyConstraint(['id_user'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -61,12 +61,40 @@ def upgrade():
     sa.Column('type', sa.String(), nullable=False),
     sa.Column('name', sa.String(), nullable=False),
     sa.Column('color_main', sa.String(), nullable=False),
-    sa.Column('color_other', sa.String(), nullable=True),
     sa.Column('material', sa.String(), nullable=False),
-    sa.Column('screen_type', sa.String(), nullable=False),
-    sa.Column('screen_diagonal', sa.String(), nullable=False),
     sa.Column('model', sa.String(), nullable=False),
-    sa.Column('screen_resolution', sa.String(), nullable=False),
+    sa.Column('height', sa.Numeric(precision=6, scale=2), nullable=False),
+    sa.Column('width', sa.Numeric(precision=6, scale=2), nullable=False),
+    sa.Column('weight', sa.Numeric(precision=6, scale=2), nullable=False),
+    sa.Column('thickness', sa.Numeric(precision=6, scale=2), nullable=False),
+    sa.Column('description', sa.String(), nullable=True),
+    sa.Column('price', sa.Numeric(precision=10, scale=2), nullable=False),
+    sa.Column('discount', sa.Integer(), nullable=True),
+    sa.Column('is_active', sa.Boolean(), nullable=True),
+    sa.Column('is_deleted', sa.Boolean(), nullable=True),
+    sa.Column('quantity', sa.Integer(), nullable=True),
+    sa.Column('equipment', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['id_author'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['id_editor_last'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['id_provider'], ['providers.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_products_type'), 'products', ['type'], unique=False)
+    op.create_table('accessories',
+    sa.Column('id_product', sa.Integer(), nullable=False),
+    sa.Column('features', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['id_product'], ['products.id'], ),
+    sa.PrimaryKeyConstraint('id_product')
+    )
+    op.create_table('favourites',
+    sa.Column('id_user', sa.Integer(), nullable=False),
+    sa.Column('id_product', sa.Integer(), nullable=False),
+    sa.Column('is_deleted', sa.Boolean(), nullable=False),
+    sa.ForeignKeyConstraint(['id_product'], ['products.id'], ),
+    sa.ForeignKeyConstraint(['id_user'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id_user', 'id_product')
+    )
+    op.create_table('laptops',
     sa.Column('screen_format', sa.String(), nullable=False),
     sa.Column('operating_system', sa.String(), nullable=False),
     sa.Column('memory_ram', sa.Integer(), nullable=False),
@@ -78,28 +106,10 @@ def upgrade():
     sa.Column('sound_technology', sa.String(), nullable=True),
     sa.Column('headphone_output', sa.Boolean(), nullable=False),
     sa.Column('date_release', sa.DateTime(), nullable=False),
-    sa.Column('length', sa.Numeric(precision=6, scale=2), nullable=False),
-    sa.Column('width', sa.Numeric(precision=6, scale=2), nullable=False),
-    sa.Column('weight', sa.Numeric(precision=6, scale=2), nullable=False),
-    sa.Column('description', sa.String(), nullable=True),
-    sa.Column('price', sa.Numeric(precision=10, scale=2), nullable=False),
-    sa.Column('is_active', sa.Boolean(), nullable=True),
-    sa.Column('is_deleted', sa.Boolean(), nullable=True),
-    sa.Column('quantity', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['id_author'], ['users.id'], ),
-    sa.ForeignKeyConstraint(['id_editor_last'], ['users.id'], ),
-    sa.ForeignKeyConstraint(['id_provider'], ['providers.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_products_type'), 'products', ['type'], unique=False)
-    op.create_table('accessories',
-    sa.Column('id_product', sa.Integer(), nullable=False),
-    sa.Column('color', sa.String(), nullable=True),
-    sa.Column('degree_protection', sa.String(), nullable=False),
-    sa.ForeignKeyConstraint(['id_product'], ['products.id'], ),
-    sa.PrimaryKeyConstraint('id_product')
-    )
-    op.create_table('laptops',
+    sa.Column('screen_resolution', sa.String(), nullable=False),
+    sa.Column('screen_type', sa.String(), nullable=False),
+    sa.Column('screen_diagonal', sa.String(), nullable=False),
+    sa.Column('color_other', sa.String(), nullable=True),
     sa.Column('id_product', sa.Integer(), nullable=False),
     sa.Column('consumption', sa.Integer(), nullable=False),
     sa.Column('keyboard_layout', sa.String(), nullable=False),
@@ -121,31 +131,28 @@ def upgrade():
     sa.Column('hdmi_ports', sa.Boolean(), nullable=False),
     sa.Column('usb_devices', sa.String(), nullable=True),
     sa.Column('battery_life', sa.Numeric(precision=5, scale=3), nullable=False),
+    sa.Column('microphone', sa.Boolean(), nullable=False),
     sa.ForeignKeyConstraint(['id_product'], ['products.id'], ),
     sa.PrimaryKeyConstraint('id_product')
-    )
-    op.create_table('liked_products',
-    sa.Column('id_user', sa.Integer(), nullable=False),
-    sa.Column('id_product', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['id_product'], ['products.id'], ),
-    sa.ForeignKeyConstraint(['id_user'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id_user', 'id_product')
     )
     op.create_table('order_items',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('id_order', sa.Integer(), nullable=False),
     sa.Column('id_user', sa.Integer(), nullable=False),
     sa.Column('id_product', sa.Integer(), nullable=False),
+    sa.Column('quantity', sa.Integer(), nullable=False),
+    sa.Column('is_deleted', sa.Boolean(), nullable=False),
     sa.ForeignKeyConstraint(['id_order'], ['orders.id'], ),
     sa.ForeignKeyConstraint(['id_product'], ['products.id'], ),
     sa.ForeignKeyConstraint(['id_user'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('product_photo',
-    sa.Column('id_product', sa.Integer(), nullable=True),
-    sa.Column('id_photo', sa.Integer(), nullable=True),
+    sa.Column('id_product', sa.Integer(), nullable=False),
+    sa.Column('id_photo', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['id_photo'], ['photos.id'], ),
-    sa.ForeignKeyConstraint(['id_product'], ['products.id'], )
+    sa.ForeignKeyConstraint(['id_product'], ['products.id'], ),
+    sa.PrimaryKeyConstraint('id_product', 'id_photo')
     )
     op.create_table('reviews',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -164,6 +171,21 @@ def upgrade():
     sa.Column('video_format', sa.String(), nullable=False),
     sa.Column('optical_stabilization', sa.Boolean(), nullable=False),
     sa.Column('front_camera_quality', sa.String(), nullable=False),
+    sa.Column('screen_format', sa.String(), nullable=False),
+    sa.Column('operating_system', sa.String(), nullable=False),
+    sa.Column('memory_ram', sa.Integer(), nullable=False),
+    sa.Column('memory', sa.Integer(), nullable=False),
+    sa.Column('matrix_frequency', sa.Integer(), nullable=False),
+    sa.Column('matrix_type', sa.String(), nullable=False),
+    sa.Column('matrix_brightness', sa.String(), nullable=False),
+    sa.Column('matrix_contrast', sa.String(), nullable=False),
+    sa.Column('sound_technology', sa.String(), nullable=True),
+    sa.Column('headphone_output', sa.Boolean(), nullable=False),
+    sa.Column('date_release', sa.DateTime(), nullable=False),
+    sa.Column('screen_resolution', sa.String(), nullable=False),
+    sa.Column('screen_type', sa.String(), nullable=False),
+    sa.Column('screen_diagonal', sa.String(), nullable=False),
+    sa.Column('color_other', sa.String(), nullable=True),
     sa.Column('id_product', sa.Integer(), nullable=False),
     sa.Column('support_lte', sa.Boolean(), nullable=False),
     sa.Column('sim_card_format', sa.String(), nullable=True),
@@ -175,10 +197,28 @@ def upgrade():
     sa.Column('accumulator_type', sa.String(), nullable=True),
     sa.Column('accumulator_capacity', sa.Integer(), nullable=False),
     sa.Column('fast_charge', sa.Boolean(), nullable=False),
+    sa.Column('communication_standard', sa.String(), nullable=True),
+    sa.Column('sim_card_number', sa.String(), nullable=True),
+    sa.Column('sensors', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['id_product'], ['products.id'], ),
     sa.PrimaryKeyConstraint('id_product')
     )
     op.create_table('smartwatches',
+    sa.Column('screen_format', sa.String(), nullable=False),
+    sa.Column('operating_system', sa.String(), nullable=False),
+    sa.Column('memory_ram', sa.Integer(), nullable=False),
+    sa.Column('memory', sa.Integer(), nullable=False),
+    sa.Column('matrix_frequency', sa.Integer(), nullable=False),
+    sa.Column('matrix_type', sa.String(), nullable=False),
+    sa.Column('matrix_brightness', sa.String(), nullable=False),
+    sa.Column('matrix_contrast', sa.String(), nullable=False),
+    sa.Column('sound_technology', sa.String(), nullable=True),
+    sa.Column('headphone_output', sa.Boolean(), nullable=False),
+    sa.Column('date_release', sa.DateTime(), nullable=False),
+    sa.Column('screen_resolution', sa.String(), nullable=False),
+    sa.Column('screen_type', sa.String(), nullable=False),
+    sa.Column('screen_diagonal', sa.String(), nullable=False),
+    sa.Column('color_other', sa.String(), nullable=True),
     sa.Column('id_product', sa.Integer(), nullable=False),
     sa.Column('material_belt', sa.String(), nullable=False),
     sa.Column('pixel_density', sa.Integer(), nullable=False),
@@ -186,6 +226,8 @@ def upgrade():
     sa.Column('accumulator_type', sa.String(), nullable=False),
     sa.Column('accumulator_capacity', sa.Integer(), nullable=False),
     sa.Column('fast_charge', sa.Boolean(), nullable=False),
+    sa.Column('water_resistance', sa.Integer(), nullable=True),
+    sa.Column('measurements', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['id_product'], ['products.id'], ),
     sa.PrimaryKeyConstraint('id_product')
     )
@@ -195,6 +237,21 @@ def upgrade():
     sa.Column('video_format', sa.String(), nullable=False),
     sa.Column('optical_stabilization', sa.Boolean(), nullable=False),
     sa.Column('front_camera_quality', sa.String(), nullable=False),
+    sa.Column('screen_format', sa.String(), nullable=False),
+    sa.Column('operating_system', sa.String(), nullable=False),
+    sa.Column('memory_ram', sa.Integer(), nullable=False),
+    sa.Column('memory', sa.Integer(), nullable=False),
+    sa.Column('matrix_frequency', sa.Integer(), nullable=False),
+    sa.Column('matrix_type', sa.String(), nullable=False),
+    sa.Column('matrix_brightness', sa.String(), nullable=False),
+    sa.Column('matrix_contrast', sa.String(), nullable=False),
+    sa.Column('sound_technology', sa.String(), nullable=True),
+    sa.Column('headphone_output', sa.Boolean(), nullable=False),
+    sa.Column('date_release', sa.DateTime(), nullable=False),
+    sa.Column('screen_resolution', sa.String(), nullable=False),
+    sa.Column('screen_type', sa.String(), nullable=False),
+    sa.Column('screen_diagonal', sa.String(), nullable=False),
+    sa.Column('color_other', sa.String(), nullable=True),
     sa.Column('id_product', sa.Integer(), nullable=False),
     sa.Column('pixel_density', sa.Integer(), nullable=False),
     sa.Column('degree_protection', sa.String(), nullable=False),
@@ -206,17 +263,34 @@ def upgrade():
     sa.Column('accumulator_type', sa.String(), nullable=True),
     sa.Column('accumulator_capacity', sa.Integer(), nullable=False),
     sa.Column('fast_charge', sa.Boolean(), nullable=False),
+    sa.Column('sensors', sa.String(), nullable=True),
+    sa.Column('communicate_module', sa.Boolean(), nullable=False),
     sa.ForeignKeyConstraint(['id_product'], ['products.id'], ),
     sa.PrimaryKeyConstraint('id_product')
     )
     op.create_table('televisions',
+    sa.Column('screen_format', sa.String(), nullable=False),
+    sa.Column('operating_system', sa.String(), nullable=False),
+    sa.Column('memory_ram', sa.Integer(), nullable=False),
+    sa.Column('memory', sa.Integer(), nullable=False),
+    sa.Column('matrix_frequency', sa.Integer(), nullable=False),
+    sa.Column('matrix_type', sa.String(), nullable=False),
+    sa.Column('matrix_brightness', sa.String(), nullable=False),
+    sa.Column('matrix_contrast', sa.String(), nullable=False),
+    sa.Column('sound_technology', sa.String(), nullable=True),
+    sa.Column('headphone_output', sa.Boolean(), nullable=False),
+    sa.Column('date_release', sa.DateTime(), nullable=False),
+    sa.Column('screen_resolution', sa.String(), nullable=False),
+    sa.Column('screen_type', sa.String(), nullable=False),
+    sa.Column('screen_diagonal', sa.String(), nullable=False),
+    sa.Column('color_other', sa.String(), nullable=True),
     sa.Column('id_product', sa.Integer(), nullable=False),
     sa.Column('consumption', sa.Integer(), nullable=False),
     sa.Column('hdr_support', sa.Boolean(), nullable=True),
     sa.Column('angle_view', sa.String(), nullable=True),
     sa.Column('voice_assistant', sa.String(), nullable=True),
     sa.Column('wifi_availability', sa.Boolean(), nullable=False),
-    sa.Column('wifi_standart', sa.String(), nullable=True),
+    sa.Column('wifi_standard', sa.String(), nullable=True),
     sa.Column('sound_power', sa.String(), nullable=True),
     sa.Column('subwoofer', sa.Boolean(), nullable=False),
     sa.Column('sound_surround', sa.Boolean(), nullable=False),
@@ -226,6 +300,7 @@ def upgrade():
     sa.Column('usb_ports', sa.String(), nullable=True),
     sa.Column('smartphone_control', sa.Boolean(), nullable=False),
     sa.Column('management_application', sa.String(), nullable=True),
+    sa.Column('bluetooth_control', sa.Boolean(), nullable=False),
     sa.ForeignKeyConstraint(['id_product'], ['products.id'], ),
     sa.PrimaryKeyConstraint('id_product')
     )
@@ -241,8 +316,8 @@ def downgrade():
     op.drop_table('reviews')
     op.drop_table('product_photo')
     op.drop_table('order_items')
-    op.drop_table('liked_products')
     op.drop_table('laptops')
+    op.drop_table('favourites')
     op.drop_table('accessories')
     op.drop_index(op.f('ix_products_type'), table_name='products')
     op.drop_table('products')

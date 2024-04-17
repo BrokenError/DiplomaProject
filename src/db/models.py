@@ -44,6 +44,8 @@ class OrderItem(Base):
     id_order = Column(Integer, ForeignKey('orders.id'), nullable=False)
     id_user = Column(Integer, ForeignKey('users.id'), nullable=False)
     id_product = Column(Integer, ForeignKey('products.id'), nullable=False)
+    quantity = Column(Integer, nullable=False, default=1)
+    is_deleted = Column(Boolean, nullable=False, default=False)
 
     order = relationship('Order')
     user = relationship('User')
@@ -59,8 +61,10 @@ class Order(CustomBase):
     id_user = Column(Integer, ForeignKey('users.id'), nullable=False)
     description = Column(String, nullable=True)
     status = Column(String, nullable=False, default='created')
+    is_deleted = Column(Boolean, nullable=False, default=False)
 
     user = relationship('User')
+    order_item = relationship('OrderItem', back_populates='order')
 
     def __str__(self):
         return f'Заказ №{self.id}'
@@ -81,8 +85,8 @@ class Provider(CustomBase):
 product_photo = Table(
     "product_photo",
     Base.metadata,
-    Column("id_product", Integer, ForeignKey("products.id")),
-    Column("id_photo", Integer, ForeignKey("photos.id")),
+    Column("id_product", Integer, ForeignKey("products.id"), primary_key=True),
+    Column("id_photo", Integer, ForeignKey("photos.id"), primary_key=True),
 )
 
 
@@ -107,12 +111,36 @@ class Product(CustomBase):
     type = Column(String, nullable=False, index=True)
     name = Column(String, nullable=False)
     color_main = Column(String, nullable=False)
-    color_other = Column(String, nullable=True)
     material = Column(String, nullable=False)
-    screen_type = Column(String, nullable=False)
-    screen_diagonal = Column(String, nullable=False)
     model = Column(String, nullable=False)
-    screen_resolution = Column(String, nullable=False)
+    height = Column(Numeric(precision=6, scale=2), nullable=False)
+    width = Column(Numeric(precision=6, scale=2), nullable=False)
+    weight = Column(Numeric(precision=6, scale=2), nullable=False)
+    thickness = Column(Numeric(precision=6, scale=2), nullable=False)
+    description = Column(String, nullable=True)
+    price = Column(Numeric(precision=10, scale=2), nullable=False)
+    discount = Column(Integer, nullable=True, default=0)
+    is_active = Column(Boolean, default=True)
+    is_deleted = Column(Boolean, default=False)
+    quantity = Column(Integer, nullable=True, default=1)
+    equipment = Column(String, nullable=True)
+
+    photos = relationship('Photo', secondary='product_photo', back_populates='products')
+    author = relationship('User', foreign_keys=[id_author])
+    editor_last = relationship('User', foreign_keys=[id_editor_last])
+    provider = relationship('Provider', foreign_keys=[id_provider])
+
+    __mapper_args__ = {
+        'polymorphic_on': 'type'
+    }
+
+    def __str__(self):
+        return f'Товар «{self.name}»'
+
+
+class Technics(Product):
+    __abstract__ = True
+
     screen_format = Column(String, nullable=False)
     operating_system = Column(String, nullable=False)
     memory_ram = Column(Integer, nullable=False)
@@ -128,29 +156,13 @@ class Product(CustomBase):
         nullable=False,
         default=datetime.datetime.now()
     )
-    length = Column(Numeric(precision=6, scale=2), nullable=False)
-    width = Column(Numeric(precision=6, scale=2), nullable=False)
-    weight = Column(Numeric(precision=6, scale=2), nullable=False)
-    description = Column(String, nullable=True)
-    price = Column(Numeric(precision=10, scale=2), nullable=False)
-    is_active = Column(Boolean, default=True)
-    is_deleted = Column(Boolean, default=False)
-    quantity = Column(Integer, nullable=False, default=0)
-
-    photos = relationship('Photo', secondary='product_photo', back_populates='products')
-    author = relationship('User', foreign_keys=[id_author])
-    editor_last = relationship('User', foreign_keys=[id_editor_last])
-    provider = relationship('Provider', foreign_keys=[id_provider])
-
-    __mapper_args__ = {
-        'polymorphic_on': 'type'
-    }
-
-    def __str__(self):
-        return f'Товар «{self.name}»'
+    screen_resolution = Column(String, nullable=False)
+    screen_type = Column(String, nullable=False)
+    screen_diagonal = Column(String, nullable=False)
+    color_other = Column(String, nullable=True)
 
 
-class Television(Product):
+class Television(Technics):
     __tablename__ = 'televisions'
 
     id_product = Column(Integer, ForeignKey('products.id'), primary_key=True)
@@ -159,7 +171,7 @@ class Television(Product):
     angle_view = Column(String, nullable=True)
     voice_assistant = Column(String, nullable=True)
     wifi_availability = Column(Boolean, nullable=False, default=False)
-    wifi_standart = Column(String, nullable=True)
+    wifi_standard = Column(String, nullable=True)
     sound_power = Column(String, nullable=True)
     subwoofer = Column(Boolean, nullable=False, default=False)
     sound_surround = Column(Boolean, nullable=False, default=False)
@@ -169,6 +181,7 @@ class Television(Product):
     usb_ports = Column(String, nullable=True)
     smartphone_control = Column(Boolean, nullable=False, default=False)
     management_application = Column(String, nullable=True)
+    bluetooth_control = Column(Boolean, nullable=False, default=False)
 
     __mapper_args__ = {
         'polymorphic_identity': 'television'
@@ -178,7 +191,7 @@ class Television(Product):
         return f'Телевизор «{self.name}»'
 
 
-class Smartphone(Product, Camera):
+class Smartphone(Technics, Camera):
     __tablename__ = 'smartphones'
 
     id_product = Column(Integer, ForeignKey('products.id'), primary_key=True)
@@ -192,6 +205,9 @@ class Smartphone(Product, Camera):
     accumulator_type = Column(String, nullable=True)
     accumulator_capacity = Column(Integer, nullable=False)
     fast_charge = Column(Boolean, nullable=False, default=True)
+    communication_standard = Column(String, nullable=True)
+    sim_card_number = Column(String, nullable=True)
+    sensors = Column(String, nullable=True)
 
     __mapper_args__ = {
         'polymorphic_identity': 'smartphone'
@@ -201,7 +217,7 @@ class Smartphone(Product, Camera):
         return f'Телефон «{self.name}»'
 
 
-class Laptop(Product):
+class Laptop(Technics):
     __tablename__ = 'laptops'
 
     id_product = Column(Integer, ForeignKey('products.id'), primary_key=True)
@@ -225,6 +241,7 @@ class Laptop(Product):
     hdmi_ports = Column(Boolean, nullable=False)
     usb_devices = Column(String, nullable=True)
     battery_life = Column(Numeric(precision=5, scale=3), nullable=False)
+    microphone = Column(Boolean, nullable=False, default=True)
 
     __mapper_args__ = {
         'polymorphic_identity': 'laptop'
@@ -234,7 +251,7 @@ class Laptop(Product):
         return f'Ноутбук «{self.name}»'
 
 
-class Smartwatch(Product):
+class Smartwatch(Technics):
     __tablename__ = 'smartwatches'
 
     id_product = Column(Integer, ForeignKey('products.id'), primary_key=True)
@@ -244,6 +261,8 @@ class Smartwatch(Product):
     accumulator_type = Column(String, nullable=False)
     accumulator_capacity = Column(Integer, nullable=False)
     fast_charge = Column(Boolean, nullable=False, default=False)
+    water_resistance = Column(Integer, nullable=True)
+    measurements = Column(String, nullable=True)
 
     __mapper_args__ = {
         'polymorphic_identity': 'smartwatch'
@@ -253,13 +272,11 @@ class Smartwatch(Product):
         return f'Часы «{self.name}»'
 
 
-# TODO ВНИМАТЕЛЬНО ПРОСМОТРЕТЬ ЭТУ ТАБЛИЦУ
 class Accessory(Product):
     __tablename__ = 'accessories'
 
     id_product = Column(Integer, ForeignKey('products.id'), primary_key=True)
-    color = Column(String, nullable=True)
-    degree_protection = Column(String, nullable=False)
+    features = Column(String, nullable=True, default="нет")
 
     __mapper_args__ = {
         'polymorphic_identity': 'accessory'
@@ -269,7 +286,7 @@ class Accessory(Product):
         return f'Аксессуар «{self.name}»'
 
 
-class Tablet(Product, Camera):
+class Tablet(Technics, Camera):
     __tablename__ = 'tablets'
 
     id_product = Column(Integer, ForeignKey('products.id'), primary_key=True)
@@ -283,6 +300,8 @@ class Tablet(Product, Camera):
     accumulator_type = Column(String, nullable=True)
     accumulator_capacity = Column(Integer, nullable=False)
     fast_charge = Column(Boolean, nullable=False, default=False)
+    sensors = Column(String, nullable=True)
+    communicate_module = Column(Boolean, nullable=False, default=False)
 
     __mapper_args__ = {
         'polymorphic_identity': 'tablet'
@@ -308,11 +327,12 @@ class Review(CustomBase):
         return f'Отзыв №{self.id}'
 
 
-class LikedProduct(Base):
-    __tablename__ = 'liked_products'
+class Favourite(Base):
+    __tablename__ = 'favourites'
 
     id_user = Column(Integer, ForeignKey('users.id'), primary_key=True)
     id_product = Column(Integer, ForeignKey('products.id'), primary_key=True)
+    is_deleted = Column(Boolean, nullable=False, default=False)
 
     user = relationship("User")
     product = relationship("Product")

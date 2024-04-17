@@ -1,9 +1,10 @@
 from typing import Optional, Iterable, List, Any, Generator
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, Request
+from jose import jwt
+from jose.exceptions import JWTError
 from pydantic import BaseModel
 from sqlalchemy import exists, inspect, select, Column
-from sqlalchemy.orm import with_polymorphic, selectin_polymorphic
 from sqlalchemy.sql import Executable, Select
 
 from apps.commons.basics.exceptions import ExceptionValidation, ExceptionNotFound
@@ -11,15 +12,40 @@ from apps.commons.managers.base import ManagerBase
 from apps.commons.pagination.mixins import MixinPagination
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.services.interface import InterfaceService
-from db.models import Product, Tablet, Accessory, Television, Smartphone, Smartwatch, Laptop
+from settings import settings_app
+
+
+class ServiceAuthenticate:
+
+    @staticmethod
+    def private(request: Request):
+        try:
+            token = request.headers["Authorization"].split("Bearer ")[-1]
+            token_decoded = jwt.decode(token, settings_app.SECRET_KEY, algorithms=[settings_app.ALGORITHM])
+            return token_decoded["sub"]
+        except JWTError:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        except KeyError:
+            raise HTTPException(status_code=401, detail="Missing token")
+
+    @staticmethod
+    def protected(request: Request):
+        try:
+            token = request.headers["Authorization"].split("Bearer ")[-1]
+            jwt.decode(token, settings_app.SECRET_KEY, algorithms=[settings_app.ALGORITHM])
+            return True
+        except JWTError:
+            return False
+        except KeyError:
+            return False
 
 
 class ServiceBase(InterfaceService, MixinPagination):
     Model = None
 
-    def __init__(self, manager: ManagerBase, id_user: int, *args, **kwargs) -> None:
+    def __init__(self, manager: ManagerBase, id_user, *args, **kwargs) -> None:
         self.manager = manager
-        self.id_user: int = id_user
+        self.id_user: Optional[int, ServiceAuthenticate] = id_user
         self._addons_base = [self.Model.is_deleted.is_(False)]
 
         super().__init__(*args, **kwargs)
@@ -36,7 +62,24 @@ class ServiceBase(InterfaceService, MixinPagination):
     @classmethod
     def from_request(
             cls,
-            id_user: int = 1,
+            id_user: int = None,
+            manager: ManagerBase = Depends(ManagerBase.from_request)
+    ):
+
+        return cls(manager=manager, id_user=id_user)
+
+    @classmethod
+    def from_request_private(
+            cls,
+            id_user: ServiceAuthenticate = Depends(ServiceAuthenticate.private),
+            manager: ManagerBase = Depends(ManagerBase.from_request)
+    ):
+        return cls(manager=manager, id_user=id_user)
+
+    @classmethod
+    def from_request_protected(
+            cls,
+            id_user: ServiceAuthenticate = Depends(ServiceAuthenticate.protected),
             manager: ManagerBase = Depends(ManagerBase.from_request)
     ):
         return cls(manager=manager, id_user=id_user)
@@ -85,17 +128,7 @@ class ServiceBase(InterfaceService, MixinPagination):
     async def get(self, id_instance: int) -> Model:
         instance = await self.get_instance(id_instance)
         if not instance:
-            raise ExceptionNotFound(details=f"{self.Model.__name__} instance doesn't exist.")
-        return instance
-
-    async def get_product(self, id_instance: int) -> Model:
-        instance = (await self.manager.execute(
-            self.select_visible().options(
-                selectin_polymorphic(Product, [
-                    Tablet, Accessory, Television, Smartphone, Smartwatch, Laptop
-                ])
-            ).where(self.Model.id == id_instance))).scalars().first()
-
+            raise HTTPException(status_code=404, detail="Такого товара не существует")
         return instance
 
     async def list(
@@ -106,6 +139,7 @@ class ServiceBase(InterfaceService, MixinPagination):
         pagination: Pagination = None,
         query: Optional[Select] = None,
     ):
+
         if query is None:
             query = self.select_visible()
 

@@ -1,11 +1,11 @@
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-from apps.products.schemas import ProductIn, ProductOut, ProductShort
+from apps.products.schemas import ProductShort, TechnicOut, TechnicIn, TechnicList
 
 
-class LaptopIn(ProductIn):
+class LaptopIn(TechnicIn):
     consumption: int = Field()
     keyboard_layout: str = Field()
     keyboard_backlight: str = Field()
@@ -26,9 +26,10 @@ class LaptopIn(ProductIn):
     hdmi_ports: bool = Field()
     usb_devices: Optional[str] = Field()
     battery_life: float = Field()
+    microphone: Optional[bool] = Field(default=True)
 
 
-class LaptopOut(ProductOut):
+class LaptopOut(TechnicOut):
     consumption: int = Field()
     keyboard_layout: str = Field()
     keyboard_backlight: str = Field()
@@ -49,14 +50,12 @@ class LaptopOut(ProductOut):
     hdmi_ports: bool = Field()
     usb_devices: Optional[str] = Field()
     battery_life: float = Field()
+    microphone: Optional[bool] = Field()
 
 
 class LaptopShort(ProductShort):
     ...
 
 
-class LaptopList(BaseModel):
-    items: list[LaptopOut]
-
-    class Config:
-        orm_mode = True
+class LaptopList(TechnicList):
+    items: list[LaptopShort]
