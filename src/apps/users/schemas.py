@@ -8,11 +8,8 @@ from settings import settings_app
 
 
 class UserIn(BaseModel):
-    email: str = Field()
-    first_name: str = Field()
-    last_name: str = Field()
-    phone_number: str = Field()
-    is_deleted: bool = Field(default=False)
+    email: Optional[str] = Field()
+    phone: Optional[str] = Field()
 
     class Config:
         orm_mode = True
@@ -52,21 +49,20 @@ class UserShort(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    first_name: str = Field()
-    last_name: str = Field()
-    phone_number: str = Field()
+    first_name: Optional[str] = Field()
+    last_name: Optional[str] = Field()
 
 
-class UserCreate(BaseModel):
-    email: str
-    password: str
+class TokenIn(BaseModel):
+    token_access: Optional[str]
+    token_refresh: Optional[str]
+
+
+class TokenOut(BaseModel):
+    token_access: Optional[str]
+    token_refresh: Optional[str]
 
 
 class UserAuthenticate(BaseModel):
-    email: str
-    password: str
-
-
-class TokensOut(BaseModel):
-    access_token: str
-    token_type: str
+    identifier: str
+    code: int

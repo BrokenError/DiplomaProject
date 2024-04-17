@@ -45,8 +45,20 @@ services:
     restart: always
     volumes:
       - ./techzone/letsencrypt:/etc/letsencrypt
+      - ./techzone/static:/src/static
+      - ./techzone/media:/src/media
+
     networks:
       - techzone
+
+  redis:
+    container_name: redis_techzone
+    image: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - techzone
+
 
 networks:
   techzone:
