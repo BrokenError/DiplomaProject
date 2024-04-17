@@ -1,15 +1,12 @@
-from datetime import datetime, date, timedelta, time
 from typing import Optional
 
-from pydantic import BaseModel, Field
-from pydantic.json import timedelta_isoformat
+from pydantic import Field
 
-from apps.base.schemas import CameraIn, CameraOut
-from apps.products.schemas import ProductIn, ProductOut, ProductShort
-from settings import settings_app
+from apps.commons.basics.schemas import CameraIn, CameraOut
+from apps.products.schemas import ProductShort, TechnicIn, TechnicOut, TechnicList
 
 
-class TabletIn(ProductIn, CameraIn):
+class TabletIn(TechnicIn, CameraIn):
     pixel_density: int = Field()
     degree_protection: str = Field()
     processor_model: str = Field()
@@ -20,9 +17,11 @@ class TabletIn(ProductIn, CameraIn):
     accumulator_type: str = Field()
     accumulator_capacity: int = Field()
     fast_charge: bool = Field()
+    sensors: Optional[str] = Field()
+    communicate_module: bool = Field(default=False)
 
 
-class TabletOut(ProductOut, CameraOut):
+class TabletOut(TechnicOut, CameraOut):
     pixel_density: int = Field()
     degree_protection: str = Field()
     processor_model: str = Field()
@@ -33,22 +32,13 @@ class TabletOut(ProductOut, CameraOut):
     accumulator_type: Optional[str] = Field()
     accumulator_capacity: int = Field()
     fast_charge: bool = Field()
+    sensors: Optional[str] = Field()
+    communicate_module: bool = Field()
 
 
 class TabletShort(ProductShort):
     ...
 
 
-class TabletList(BaseModel):
-    items: list[TabletOut]
-
-    class Config:
-        orm_mode = True
-        allow_population_by_field_name = True
-        json_encoders = {
-            datetime: lambda v: v.strftime(settings_app.FORMAT_DATETIME),
-            date: lambda v: v.strftime(settings_app.FORMAT_DATE),
-            time: lambda v: v.strftime(settings_app.FORMAT_TIME),
-            timedelta: timedelta_isoformat,
-        }
-        smart_union = True
+class TabletList(TechnicList):
+    items: list[TabletShort]

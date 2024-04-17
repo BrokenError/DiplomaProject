@@ -6,13 +6,11 @@ from apps.products.schemas import ProductIn, ProductShort, ProductOut
 
 
 class AccessoryIn(ProductIn):
-    color: str = Field()
-    degree_protection: str = Field()
+    features: Optional[str] = Field(default="нет")
 
 
 class AccessoryOut(ProductOut):
-    color: Optional[str] = Field()
-    degree_protection: str = Field()
+    features: Optional[str] = Field()
 
 
 class AccessoryShort(ProductShort):
@@ -20,7 +18,7 @@ class AccessoryShort(ProductShort):
 
 
 class AccessoryList(BaseModel):
-    items: list[AccessoryOut]
+    items: list[AccessoryShort]
 
     class Config:
         orm_mode = True

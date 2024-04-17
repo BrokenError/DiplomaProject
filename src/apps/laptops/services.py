@@ -1,14 +1,14 @@
 import logging
 from typing import Optional
 
-from apps.commons.services.base import ServiceBase
 from apps.laptops.schemas import LaptopIn
+from apps.products.services import ProductService
 from db.models import Laptop
 
-logger = logging.getLogger('events')
+logger = logging.getLogger('laptops')
 
 
-class LaptopService(ServiceBase):
+class LaptopService(ProductService):
     Model = Laptop
 
     async def create(self, *, data: LaptopIn = None, data_extra: Optional[dict] = None) -> Model:

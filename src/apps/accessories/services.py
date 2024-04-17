@@ -2,13 +2,13 @@ import logging
 from typing import Optional
 
 from apps.accessories.schemas import AccessoryIn
-from apps.commons.services.base import ServiceBase
+from apps.products.services import ProductService
 from db.models import Accessory
 
 logger = logging.getLogger('accessories')
 
 
-class AccessoryService(ServiceBase):
+class AccessoryService(ProductService):
     Model = Accessory
 
     async def create(self, *, data: AccessoryIn = None, data_extra: Optional[dict] = None) -> Model:

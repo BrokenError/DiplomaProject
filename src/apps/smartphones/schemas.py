@@ -1,12 +1,12 @@
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-from apps.base.schemas import CameraOut, CameraIn
-from apps.products.schemas import ProductIn, ProductOut, ProductShort
+from apps.commons.basics.schemas import CameraOut, CameraIn
+from apps.products.schemas import ProductShort, TechnicIn, TechnicOut, TechnicList
 
 
-class SmartphoneIn(ProductIn, CameraIn):
+class SmartphoneIn(TechnicIn, CameraIn):
     support_lte: bool = Field()
     sim_card_format: str = Field()
     pixel_density: int = Field()
@@ -17,9 +17,12 @@ class SmartphoneIn(ProductIn, CameraIn):
     accumulator_type: str = Field()
     accumulator_capacity: int = Field()
     fast_charge: bool = Field()
+    communication_standard: Optional[str] = Field()
+    sim_card_number: Optional[str] = Field()
+    sensors: Optional[str] = Field()
 
 
-class SmartphoneOut(ProductOut, CameraOut):
+class SmartphoneOut(TechnicOut, CameraOut):
     support_lte: bool = Field()
     sim_card_format: Optional[str] = Field()
     pixel_density: int = Field()
@@ -30,14 +33,14 @@ class SmartphoneOut(ProductOut, CameraOut):
     accumulator_type: Optional[str] = Field()
     accumulator_capacity: int = Field()
     fast_charge: bool = Field()
+    communication_standard: Optional[str] = Field()
+    sim_card_number: Optional[str] = Field()
+    sensors: Optional[str] = Field()
 
 
 class SmartphoneShort(ProductShort):
     ...
 
 
-class SmartphoneList(BaseModel):
-    items: list[SmartphoneOut]
-
-    class Config:
-        orm_mode = True
+class SmartphoneList(TechnicList):
+    items: list[SmartphoneShort]

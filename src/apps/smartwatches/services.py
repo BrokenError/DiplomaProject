@@ -1,14 +1,14 @@
 import logging
 from typing import Optional
 
-from apps.commons.services.base import ServiceBase
+from apps.products.services import ProductService
 from apps.smartwatches.schemas import SmartwatchIn
 from db.models import Smartwatch
 
 logger = logging.getLogger('smartwatches')
 
 
-class SmartwatchService(ServiceBase):
+class SmartwatchService(ProductService):
     Model = Smartwatch
 
     async def create(self, *, data: SmartwatchIn = None, data_extra: Optional[dict] = None) -> Model:

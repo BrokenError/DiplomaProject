@@ -11,5 +11,5 @@ class ProviderAdmin(ModelView, model=Provider):
     can_edit = True
     can_delete = True
     can_view_details = True
-    plural = "Провайдер"
-    name_plural = "Провайдеры"
+    plural = "Поставщик"
+    name_plural = "Поставщики"
