@@ -1,16 +1,11 @@
-from sqladmin import ModelView
-
+from admin.products import BaseTechnic
 from db.models import Smartwatch
+from field_names_ru import SmartwatchFields
 
 
-class SmartwatchAdmin(ModelView, model=Smartwatch):
-    column_list = '__all__'
+class SmartwatchAdmin(BaseTechnic, model=Smartwatch):
+    column_labels = SmartwatchFields
     column_searchable_list = [Smartwatch.name, Smartwatch.id]
     column_default_sort = [(Smartwatch.id, True)]
-    can_create = True
-    can_edit = True
-    can_delete = True
-    can_view_details = True
-    category = "Категории товаров"
-    plural = "Часы"
+    name = "Часы"
     name_plural = "Часы"
