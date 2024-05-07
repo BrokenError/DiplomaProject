@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Optional, List
 
 from pydantic import BaseModel, Field
+from pydantic.schema import datetime
 from pydantic.types import PositiveInt
 
 from apps.products.schemas import ProductPhoto
@@ -34,8 +35,8 @@ class OrderItemOut(BaseModel):
 class OrderOut(BaseModel):
     id: PositiveInt = Field()
     description: Optional[str] = Field()
+    date_created: Optional[datetime] = Field()
     status: str = Field()
-    order_item: Optional[List[OrderItemOut]] = Field()
 
     class Config:
         orm_mode = True
@@ -45,6 +46,7 @@ class OrderShort(BaseModel):
     id: PositiveInt = Field()
     description: Optional[str] = Field()
     status: str = Field()
+    date_created: Optional[datetime] = Field()
     order_item: Optional[List[OrderItemOut]] = Field()
 
     class Config:
