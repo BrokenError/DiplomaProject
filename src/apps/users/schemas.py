@@ -23,7 +23,6 @@ class UserOut(BaseModel):
     last_name: Optional[str] = Field()
     first_name: Optional[str] = Field()
     phone_number: Optional[str] = Field()
-    is_deleted: bool = Field()
     date_created: datetime = Field()
 
     class Config:

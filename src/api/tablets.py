@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends
 
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.pagination.utils import get_pagination
-from apps.commons.services.base import ServiceAuthenticate
 from apps.favourites.services import FavouriteService
 from apps.tablets.schemas import TabletList, TabletOut
 from apps.tablets.services import TabletService

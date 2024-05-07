@@ -51,7 +51,7 @@ class FavouriteService(ServiceBase):
         query: Optional[Select] = None,
     ):
         if query is None:
-            query = self.select_visible()
+            query = self.select_visible(id_user=self.id_user)
 
         if filters:
             for filter in filters:

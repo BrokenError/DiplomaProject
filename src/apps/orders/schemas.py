@@ -16,10 +16,14 @@ class OrderStatus(str, Enum):
     GOT = 'got'
 
 
+class OrderPayment(str, Enum):
+    CASH = 'cash'
+    CARD = 'card'
+
+
 class OrderIn(BaseModel):
     order_items: List[PositiveInt]
-    description: Optional[str] = Field()
-    status: OrderStatus
+    payment_method: OrderPayment
 
     class Config:
         orm_mode = True
@@ -27,6 +31,7 @@ class OrderIn(BaseModel):
 
 class OrderItemOut(BaseModel):
     product: ProductPhoto = Field()
+    quantity: PositiveInt = Field()
 
     class Config:
         orm_mode = True
@@ -34,9 +39,10 @@ class OrderItemOut(BaseModel):
 
 class OrderOut(BaseModel):
     id: PositiveInt = Field()
-    description: Optional[str] = Field()
+    payment_method: str = Field()
     date_created: Optional[datetime] = Field()
     status: str = Field()
+    is_paid: bool = Field()
 
     class Config:
         orm_mode = True
@@ -47,7 +53,7 @@ class OrderShort(BaseModel):
     description: Optional[str] = Field()
     status: str = Field()
     date_created: Optional[datetime] = Field()
-    order_item: Optional[List[OrderItemOut]] = Field()
+    order_items: Optional[List[OrderItemOut]] = Field()
 
     class Config:
         orm_mode = True

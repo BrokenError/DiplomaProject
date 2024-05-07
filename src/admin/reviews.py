@@ -31,9 +31,10 @@ class ReviewAdmin(ModelView, model=Review):
 
     async def insert_model(self, request: Request, data: dict) -> Any:
         self.validate_data(data)
+        id_user = int(data['user'])
         async with SessionLocal() as session:
-            service = ReviewService(manager=ManagerBase(session=session), id_user=None)
-            if await service.check_exists(id_user=int(data['user']), id_product=int(data['product'])):
+            service = ReviewService(manager=ManagerBase(session=session), id_user=id_user)
+            if await service.check_exists(id_user=id_user, id_product=int(data['product'])):
                 raise ValueError('Отзыв уже существует')
         return await super().insert_model(data=data, request=request)
 

@@ -6,6 +6,7 @@ from sqladmin import ModelView
 from starlette.requests import Request
 
 from apps.commons.managers.base import ManagerBase
+from apps.orders.schemas import OrderStatus
 from db.database import SessionLocal
 from db.models import User, Order
 from field_names_ru import UserFields
@@ -36,7 +37,7 @@ class UserAdmin(ModelView, model=User):
             manager = ManagerBase(session=session)
             order = await manager.create(
                 Order,
-                {"description": "Корзина пользователя", "status": "cart"} | {"id_user": int(user.id)}
+                {"status": OrderStatus.CART, "payment_method": "Отсутствует"} | {"id_user": int(user.id)}
             )
             await manager.session.refresh(order)
         return user

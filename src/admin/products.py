@@ -34,7 +34,7 @@ class BaseTechnic(ModelView):
     @staticmethod
     def validate_data(data: dict):
         if data['type'] not in settings_app.CATEGORIES:
-            raise ValueError(f"Неверный формат категории. Возможные значения: {' '.join(settings_app.CATEGORIES)}")
+            raise ValueError(f"Неверный формат категории. Возможные значения: {', '.join(settings_app.CATEGORIES)}")
         elif min(data['height'], data['width'], data['weight'], data['thickness']) <= 0:
             raise ValueError('Размеры и вес товара должны быть больше нуля')
         elif min(data['price'], data['discount']) < 0:

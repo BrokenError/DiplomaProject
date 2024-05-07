@@ -21,7 +21,7 @@ class CartService(ServiceBase):
     ) -> Model:
         user_order_cart = await self.get_order_cart()
 
-        await self.check_product_or_404(data)
+        await self.check_product_or_404(dict(data))
 
         if await self.check_exists(
                 id_user=self.id_user,
@@ -68,7 +68,7 @@ class CartService(ServiceBase):
     async def get_order_cart(self):
         return (await self.manager.execute(
             select(Order)
-            .options(joinedload(Order.order_item))
+            .options(joinedload(Order.order_items))
             .where(Order.status == self.STATUS)
             .where(Order.id_user == int(self.id_user))
         )).scalars().first()
@@ -81,7 +81,6 @@ class CartService(ServiceBase):
             data_extra: Optional[dict] = None
     ) -> Model:
         order = await self.get_order_cart()
-
         if not await self.check_exists(id_user=self.id_user, id_order=order.id, id_product=id_product):
             raise HTTPException(status_code=404, detail="Product not found in cart")
 

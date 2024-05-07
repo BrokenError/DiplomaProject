@@ -215,7 +215,7 @@ class ServiceBase(InterfaceService, MixinPagination):
 
     async def check_product_or_404(self, data):
         if not (await self.manager.execute(
-            exists(select(Product).where(Product.id == data.id_product)).select()
+            exists(select(Product).where(Product.id == data['id_product'])).select()
         )).scalar():
             raise HTTPException(404,  detail='Product not found')
         return True

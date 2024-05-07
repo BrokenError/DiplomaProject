@@ -10,8 +10,9 @@ from jose import jwt
 
 from apps.commons.basics.exceptions import ExceptionValidation
 from apps.commons.services import ServiceBase
+from apps.orders.schemas import OrderStatus
 from apps.users.schemas import UserIn, UserAuthenticate, TokenIn
-from db.models import User
+from db.models import User, Order
 from resources.redis_services import redis
 from resources.smtp_services import smtp_client
 from settings import settings_app
@@ -32,7 +33,6 @@ class UserService(ServiceBase):
         if data_extra is None:
             data_extra = dict()
 
-        data = (await self.validate_data(None, data)).dict(exclude_unset=True) if data else dict()
         user = await self.manager.create(
             self.Model,
             data | data_extra
@@ -89,8 +89,9 @@ class UserService(ServiceBase):
         # template_content = template_content.replace('$COMPANY_NAME', f'{settings_app.COMPANY_NAME.capitalize()}')
 
         # msg.attach(MIMEText(template_content, 'html'))
-
+        await smtp_client.connect()
         await smtp_client.send(msg)
+        await smtp_client.close()
         return code
 
     async def authenticate_user(self, user_auth: UserAuthenticate):
@@ -98,8 +99,13 @@ class UserService(ServiceBase):
         if str(user_auth.code) != code:
             raise HTTPException(status_code=401, detail='Неверный код')
         data = {"email": f"{user_auth.email}"}
-        if not await self.check_exists(data_extra=data):
-            id_user = (await self.create(data_extra=data)).id
+        if not await self.check_exists(**data):
+            id_user = (await self.create(data=data)).id
+            order = await self.manager.create(
+                Order,
+                {"status": OrderStatus.CART, "id_user": id_user, "payment_method": "Отсутствует"}
+            )
+            await self.manager.session.refresh(order)
         else:
             id_user = (await self.get_instance_by_data(**data)).id
         return self.authorize(id_user)

@@ -10,7 +10,7 @@ from apps.carts.services import CartService
 from apps.commons.basics.exceptions import ExceptionValidation
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.services.base import ServiceBase
-from apps.orders.schemas import OrderIn
+from apps.orders.schemas import OrderIn, OrderStatus
 from db.models import Product, Order, OrderItem, Photo
 
 logger = logging.getLogger('orders')
@@ -29,16 +29,15 @@ class OrderService(ServiceBase):
         if not data and not data_extra:
             raise ExceptionValidation("'data' and 'data_extra' params are None. Can not create empty instance.")
 
-        status = {"status": data.status}
-
         data = (await self.validate_data(None, data)).dict(exclude_unset=True) if data else dict()
-
-        description = {"description": str(data['description'])}
-        user = {"id_user": int(self.id_user)}
 
         order = await self.manager.create(
             self.Model,
-            data_create=status | description | user
+            data_create={
+                "id_user": self.id_user,
+                "payment_method": data.get("payment_method"),
+                "status": OrderStatus.ASSEMBLY,
+            }
         )
         await self.manager.session.refresh(order)
 
@@ -63,11 +62,11 @@ class OrderService(ServiceBase):
     async def get_instance(self, id_instance: int) -> Model:
         return (await self.manager.execute(
             self.select_visible().filter(Order.id == id_instance).options(
-                selectinload(Order.order_item)
+                selectinload(Order.order_items)
                 .selectinload(OrderItem.product)
                 .selectinload(Product.photos).load_only(Photo.url)
             )
-            .filter(Order.status != 'cart')
+            .filter(Order.status != self.STATUS)
         )).scalars().first()
 
     async def get_fragment(self, query: Select, limit: Optional[int], offset: int) -> Tuple[List, int]:
@@ -75,11 +74,11 @@ class OrderService(ServiceBase):
         return (
             (await self.manager.execute(
                 query.limit(limit).offset(offset).filter(Order.id_user == self.id_user).options(
-                    selectinload(Order.order_item)
+                    selectinload(Order.order_items)
                     .selectinload(OrderItem.product)
                     .selectinload(Product.photos).load_only(Photo.url)
                 )
-                .filter(Order.status != 'cart')
+                .filter(Order.status != self.STATUS)
             )).scalars().all(),
             (await self.manager.execute(query_count)).scalar()
         )

@@ -86,7 +86,8 @@ class ProductService(ServiceBase):
         modified_reviews = []
         for review in reviews:
             review_dict = dict(review)
-            review_dict['photo_url'] = settings_app.BASE_URL + review_dict['photo_url']
+            if review_dict['photo_url']:
+                review_dict['photo_url'] = settings_app.BASE_URL + review_dict['photo_url']
             modified_reviews.append(review_dict)
         instance.reviews = modified_reviews
         return instance
