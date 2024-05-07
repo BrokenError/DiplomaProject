@@ -1,16 +1,12 @@
-from sqladmin import ModelView
+from admin.products import BaseTechnic
 
 from db.models import Accessory
+from field_names_ru import AccessoryFields
 
 
-class AccessoryAdmin(ModelView, model=Accessory):
-    column_list = '__all__'
+class AccessoryAdmin(BaseTechnic, model=Accessory):
+    column_labels = AccessoryFields
     column_searchable_list = [Accessory.name, Accessory.id]
     column_default_sort = [(Accessory.id, True)]
-    can_create = True
-    can_edit = True
-    can_delete = True
-    can_view_details = True
-    category = "Категории товаров"
-    plural = "Аксессуар"
+    name = "Аксессуар"
     name_plural = "Аксессуары"

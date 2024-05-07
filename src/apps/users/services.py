@@ -1,6 +1,5 @@
 import os
 import random
-import re
 from datetime import timedelta, datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -9,10 +8,14 @@ from typing import Optional, Union
 from fastapi import HTTPException
 from jose import jwt
 
+from apps.commons.basics.exceptions import ExceptionValidation
 from apps.commons.services import ServiceBase
+from apps.orders.schemas import OrderStatus
 from apps.users.schemas import UserIn, UserAuthenticate, TokenIn
-from db.models import User
+from db.models import User, Order
 from resources.redis_services import redis
+from resources.smtp_services import smtp_client
+from settings import settings_app
 
 
 class UserService(ServiceBase):
@@ -24,9 +27,24 @@ class UserService(ServiceBase):
         )).scalars().first()
 
     async def create(self, *, data: Union[UserIn, dict] = None, data_extra: Optional[dict] = None) -> Model:
-        user = await super().create(data=data, data_extra=data_extra)
+        if not data and not data_extra:
+            raise ExceptionValidation("'data' and 'data_extra' params are None. Can not create empty instance.")
+
+        if data_extra is None:
+            data_extra = dict()
+
+        user = await self.manager.create(
+            self.Model,
+            data | data_extra
+        )
         await self.manager.session.refresh(user)
         return user
+
+    async def get(self, id_instance: Optional[int] = None) -> Model:
+        instance = await self.get_instance(id_instance or int(self.id_user))
+        if not instance:
+            raise HTTPException(status_code=404, detail="Такого пользователя не существует")
+        return instance
 
     def authorize(self, id_user: int):
         token_access = self.create_token(
@@ -38,52 +56,56 @@ class UserService(ServiceBase):
         return {"token_access": token_access, "token_refresh": token_refresh}
 
     @staticmethod
-    def check_datain(data: str):
-        if re.match(rf'{os.getenv("EMAIL_REGEX")}', data):
-            return {"email": data}
-        elif re.match(rf'{os.getenv("PHONE_REGEX")}', data):
-            return {"phone": data}
-        raise HTTPException(status_code=400, detail="Неверные данные")
-
-    @staticmethod
     def generate_confirmation_code():
         return random.randint(100000, 999999)
 
     async def save_confirmation_code(self, data: str):
         code = self.generate_confirmation_code()
         await redis.set(data, code, expire=600)
-        print(f"Confirmation code: {code}")
-        return code
-
-    async def send_message_phone(self, phone: str):
-        code = await self.save_confirmation_code(phone)
-        ...
         return code
 
     async def send_message_email(self, email: str):
         code = await self.save_confirmation_code(email)
 
         msg = MIMEMultipart()
-        msg['From'] = 'vvglvv1@gmail.com'
+        msg['From'] = 'Techzone@wis-techzone.ru'
         msg['To'] = email
         msg['Subject'] = 'Подтверждение регистрации'
 
-        body = (f'Здравствуйте!\nВы получили это письмо, потому что кто-то пытался войти в ваш аккаунт на нашем сайте.'
-                f' Если это были вы, пожалуйста, подтвердите вход.'
-                f'\nЕсли это были не вы и вы не пытались войти в аккаунт, проигнорируйте это письмо.\n '
-                f'Код для подтверждения входа: {code}.\nС уважением,\nКоманда {os.getenv("COMPANY_NAME")}')
+        body = (f'Здравствуйте!\n'
+                f'Вы получили это письмо, потому что кто-то пытался войти в ваш аккаунт на нашем сайте.'
+                f' Если это были вы, пожалуйста, подтвердите вход.\n'
+                f'Если это были не вы и вы не пытались войти в аккаунт, проигнорируйте это письмо.\n'
+                f'Код для подтверждения входа: {code}.\n\n'
+                f'С уважением,'
+                f'\nКоманда {settings_app.COMPANY_NAME.capitalize()}')
         msg.attach(MIMEText(body, 'plain'))
 
-        # smtp_client.send(msg)
+        # with open('notification.html', 'r') as file:
+        #     template_content = file.read()
+
+        # template_content = template_content.replace('$ACCOUNT', f'{email}')
+        # template_content = template_content.replace('$CODE', f'{code}')
+        # template_content = template_content.replace('$COMPANY_NAME', f'{settings_app.COMPANY_NAME.capitalize()}')
+
+        # msg.attach(MIMEText(template_content, 'html'))
+        await smtp_client.connect()
+        await smtp_client.send(msg)
+        await smtp_client.close()
         return code
 
     async def authenticate_user(self, user_auth: UserAuthenticate):
-        code = await redis.get(f'{user_auth.identifier}')
+        code = await redis.get(f'{user_auth.email}')
         if str(user_auth.code) != code:
             raise HTTPException(status_code=401, detail='Неверный код')
-        data = self.check_datain(user_auth.identifier)
+        data = {"email": f"{user_auth.email}"}
         if not await self.check_exists(**data):
-            id_user = (await self.create(data_extra=data)).id
+            id_user = (await self.create(data=data)).id
+            order = await self.manager.create(
+                Order,
+                {"status": OrderStatus.CART, "id_user": id_user, "payment_method": "Отсутствует"}
+            )
+            await self.manager.session.refresh(order)
         else:
             id_user = (await self.get_instance_by_data(**data)).id
         return self.authorize(id_user)
@@ -99,11 +121,23 @@ class UserService(ServiceBase):
     async def get_valid_token(self, data: TokenIn):
         if not data.token_refresh:
             raise HTTPException(status_code=401, detail='Ваша сессия истекла. Пожалуйста, выполните вход снова.')
-        if not data.token_access:
+        try:
             decoded_data = jwt.decode(
                 data.token_refresh,
-                os.getenv("SECRET_KEY"),
-                algorithms=[os.getenv("ALGORITHM")],
+                settings_app.SECRET_KEY,
+                algorithms=settings_app.ALGORITHM,
             )
-            data = self.authorize(id_user=decoded_data['sub'])
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail='Ваша сессия истекла. Пожалуйста, выполните вход снова.')
+        except jwt.JWTError:
+            raise HTTPException(status_code=400, detail='Неверный токен')
+        data = self.authorize(id_user=decoded_data['sub'])
         return data
+
+    async def delete(self, id_instance: Optional[int] = None) -> Model:
+        return await self.manager.update(
+            await self.get(self.id_user),
+            {
+                'is_deleted': True,
+            }
+        )

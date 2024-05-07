@@ -1,23 +1,29 @@
+
+from enum import Enum
 from typing import Optional, List
 
 from pydantic import BaseModel, Field
+from pydantic.schema import datetime
+from pydantic.types import PositiveInt
 
 from apps.products.schemas import ProductPhoto
 
 
+class OrderStatus(str, Enum):
+    CART = 'cart'
+    ASSEMBLY = 'assembly'
+    READY = 'ready'
+    GOT = 'got'
+
+
+class OrderPayment(str, Enum):
+    CASH = 'cash'
+    CARD = 'card'
+
+
 class OrderIn(BaseModel):
-    description: Optional[str] = Field()
-    status: str = Field(default="cart")
-
-    class Config:
-        orm_mode = True
-
-
-class OrderItemIn(BaseModel):
-    id_order: int = Field()
-    id_user: int = Field()
-    id_product: int = Field()
-    quantity: int = Field(default=1)
+    order_items: List[PositiveInt]
+    payment_method: OrderPayment
 
     class Config:
         orm_mode = True
@@ -25,26 +31,29 @@ class OrderItemIn(BaseModel):
 
 class OrderItemOut(BaseModel):
     product: ProductPhoto = Field()
+    quantity: PositiveInt = Field()
 
     class Config:
         orm_mode = True
 
 
 class OrderOut(BaseModel):
-    id: int = Field()
-    description: Optional[str] = Field()
+    id: PositiveInt = Field()
+    payment_method: str = Field()
+    date_created: Optional[datetime] = Field()
     status: str = Field()
-    order_item: Optional[List[OrderItemOut]] = Field()
+    is_paid: bool = Field()
 
     class Config:
         orm_mode = True
 
 
 class OrderShort(BaseModel):
-    id: int = Field()
+    id: PositiveInt = Field()
     description: Optional[str] = Field()
     status: str = Field()
-    order_item: Optional[List[OrderItemOut]] = Field()
+    date_created: Optional[datetime] = Field()
+    order_items: Optional[List[OrderItemOut]] = Field()
 
     class Config:
         orm_mode = True

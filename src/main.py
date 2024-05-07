@@ -1,8 +1,5 @@
 import asyncio
-import logging
-import os
 from contextlib import asynccontextmanager
-from logging.config import dictConfig
 
 import uvicorn
 from fastapi import FastAPI
@@ -29,19 +26,11 @@ from db.database import engine
 from resources.redis_services import redis
 from settings import settings_app
 
-logging.config.fileConfig(
-    os.path.join(os.path.dirname(__file__), 'logging.conf'),
-    disable_existing_loggers=False,
-)
-logger = logging.getLogger(__name__)
-
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await redis.up()
-    # await smtp_client.connect()
     yield
-    # await smtp_client.close()
     await redis.down()
 
 

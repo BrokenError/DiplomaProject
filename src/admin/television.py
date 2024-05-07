@@ -1,16 +1,11 @@
-from sqladmin import ModelView
-
+from admin.products import BaseTechnic
 from db.models import Television
+from field_names_ru import TelevisionFields
 
 
-class TelevisionAdmin(ModelView, model=Television):
-    column_list = '__all__'
+class TelevisionAdmin(BaseTechnic, model=Television):
+    column_labels = TelevisionFields
     column_searchable_list = [Television.name, Television.id]
     column_default_sort = [(Television.id, True)]
-    can_create = True
-    can_edit = True
-    can_delete = True
-    can_view_details = True
-    category = "Категории товаров"
-    plural = "Телевизор"
+    name = "Телевизор"
     name_plural = "Телевизоры"

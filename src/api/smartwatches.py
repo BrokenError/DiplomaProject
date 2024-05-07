@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends
 
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.pagination.utils import get_pagination
-from apps.commons.services.base import ServiceAuthenticate
 from apps.favourites.services import FavouriteService
 from apps.smartwatches.schemas import SmartwatchList, SmartwatchOut
 from apps.smartwatches.services import SmartwatchService

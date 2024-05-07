@@ -7,11 +7,12 @@ from pydantic import BaseModel
 from sqlalchemy import exists, inspect, select, Column
 from sqlalchemy.sql import Executable, Select
 
-from apps.commons.basics.exceptions import ExceptionValidation, ExceptionNotFound
+from apps.commons.basics.exceptions import ExceptionValidation
 from apps.commons.managers.base import ManagerBase
 from apps.commons.pagination.mixins import MixinPagination
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.services.interface import InterfaceService
+from db.models import Product
 from settings import settings_app
 
 
@@ -23,10 +24,10 @@ class ServiceAuthenticate:
             token = request.headers["Authorization"].split("Bearer ")[-1]
             token_decoded = jwt.decode(token, settings_app.SECRET_KEY, algorithms=[settings_app.ALGORITHM])
             return token_decoded["sub"]
-        except JWTError:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        except KeyError:
-            raise HTTPException(status_code=401, detail="Missing token")
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token expired")
+        except (jwt.JWTError, KeyError, ValueError):
+            raise HTTPException(status_code=400, detail="Token invalid")
 
     @staticmethod
     def protected(request: Request):
@@ -34,25 +35,22 @@ class ServiceAuthenticate:
             token = request.headers["Authorization"].split("Bearer ")[-1]
             jwt.decode(token, settings_app.SECRET_KEY, algorithms=[settings_app.ALGORITHM])
             return True
-        except JWTError:
-            return False
-        except KeyError:
+        except (JWTError, KeyError, ValueError):
             return False
 
 
 class ServiceBase(InterfaceService, MixinPagination):
     Model = None
 
-    def __init__(self, manager: ManagerBase, id_user, *args, **kwargs) -> None:
+    def __init__(self, manager: ManagerBase, id_user: [int, ServiceAuthenticate], *args, **kwargs) -> None:
         self.manager = manager
-        self.id_user: Optional[int, ServiceAuthenticate] = id_user
-        self._addons_base = [self.Model.is_deleted.is_(False)]
+        self.id_user: Optional[int, ServiceAuthenticate] = int(id_user)
+        self._addons_base: Optional[Any] = []
 
         super().__init__(*args, **kwargs)
 
     def __init_subclass__(cls, **kwargs):
         assert cls.Model, 'Model for ServiceBase is not set'
-        assert hasattr(cls.Model, 'is_deleted'), f"Model {cls.Model.__name__} must have property 'is_deleted'"
 
         super().__init_subclass__()
 
@@ -62,7 +60,7 @@ class ServiceBase(InterfaceService, MixinPagination):
     @classmethod
     def from_request(
             cls,
-            id_user: int = None,
+            id_user: [int, ServiceAuthenticate],
             manager: ManagerBase = Depends(ManagerBase.from_request)
     ):
 
@@ -71,7 +69,7 @@ class ServiceBase(InterfaceService, MixinPagination):
     @classmethod
     def from_request_private(
             cls,
-            id_user: ServiceAuthenticate = Depends(ServiceAuthenticate.private),
+            id_user: [int, ServiceAuthenticate] = Depends(ServiceAuthenticate.private),
             manager: ManagerBase = Depends(ManagerBase.from_request)
     ):
         return cls(manager=manager, id_user=id_user)
@@ -79,7 +77,7 @@ class ServiceBase(InterfaceService, MixinPagination):
     @classmethod
     def from_request_protected(
             cls,
-            id_user: ServiceAuthenticate = Depends(ServiceAuthenticate.protected),
+            id_user: [int, ServiceAuthenticate] = Depends(ServiceAuthenticate.protected),
             manager: ManagerBase = Depends(ManagerBase.from_request)
     ):
         return cls(manager=manager, id_user=id_user)
@@ -163,7 +161,7 @@ class ServiceBase(InterfaceService, MixinPagination):
 
     async def update(
         self,
-        id_instance: int,
+        id_instance: Optional[int] = None,
         *,
         data: Optional[BaseModel] = None,
         data_extra: Optional[dict] = None
@@ -214,3 +212,10 @@ class ServiceBase(InterfaceService, MixinPagination):
         return (await self.manager.execute(
             query=exists(self.select_visible(**conditions)).select()
         )).scalar()
+
+    async def check_product_or_404(self, data):
+        if not (await self.manager.execute(
+            exists(select(Product).where(Product.id == data['id_product'])).select()
+        )).scalar():
+            raise HTTPException(404,  detail='Product not found')
+        return True

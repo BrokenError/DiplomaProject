@@ -1,12 +1,13 @@
 from typing import Optional
 
 from pydantic import Field
+from pydantic.types import PositiveInt
 
 from apps.products.schemas import ProductShort, TechnicOut, TechnicIn, TechnicList
 
 
 class LaptopIn(TechnicIn):
-    consumption: int = Field()
+    consumption: PositiveInt = Field()
     keyboard_layout: str = Field()
     keyboard_backlight: str = Field()
     touchpad: str = Field()
@@ -17,20 +18,20 @@ class LaptopIn(TechnicIn):
     discrete_graphics: Optional[str] = Field()
     video_chip: str = Field()
     video_memory_type: Optional[str] = Field()
-    video_memory: int = Field()
-    clock_speed: int = Field()
+    video_memory: PositiveInt = Field()
+    clock_speed: PositiveInt = Field()
     voice_assistant: Optional[str] = Field()
     wifi_availability: bool = Field()
     wifi_standard: Optional[str] = Field()
     sound_power: Optional[str] = Field()
     hdmi_ports: bool = Field()
-    usb_devices: Optional[str] = Field()
+    usb_ports: Optional[str] = Field()
     battery_life: float = Field()
     microphone: Optional[bool] = Field(default=True)
 
 
 class LaptopOut(TechnicOut):
-    consumption: int = Field()
+    consumption: PositiveInt = Field()
     keyboard_layout: str = Field()
     keyboard_backlight: str = Field()
     touchpad: str = Field()
@@ -41,14 +42,14 @@ class LaptopOut(TechnicOut):
     discrete_graphics: Optional[str] = Field()
     video_chip: str = Field()
     video_memory_type: Optional[str] = Field()
-    video_memory: int = Field()
-    clock_speed: int = Field()
+    video_memory: PositiveInt = Field()
+    clock_speed: PositiveInt = Field()
     voice_assistant: Optional[str] = Field()
     wifi_availability: bool = Field()
     wifi_standard: Optional[str] = Field()
     sound_power: Optional[str] = Field()
     hdmi_ports: bool = Field()
-    usb_devices: Optional[str] = Field()
+    usb_ports: Optional[str] = Field()
     battery_life: float = Field()
     microphone: Optional[bool] = Field()
 
