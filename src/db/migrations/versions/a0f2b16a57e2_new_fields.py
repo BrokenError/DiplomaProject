@@ -59,7 +59,8 @@ def upgrade():
                existing_type=sa.INTEGER(),
                nullable=True)
     op.drop_column('televisions', 'screen_type')
-    op.add_column('users', sa.Column('photo_url', FileType(storage='../techzone/'), nullable=True))
+    op.add_column('users', sa.Column('photo_url', FileType(storage='/media/users/'), nullable=True))
+    op.alter_column('photos', 'url', existing_type=FileType(storage='/static/'), nullable=True)
     op.create_unique_constraint(None, 'users', ['phone_number'])
     op.create_unique_constraint(None, 'users', ['email'])
     op.drop_column('users', 'is_deleted')
@@ -72,6 +73,7 @@ def downgrade():
     op.drop_constraint(None, 'users', type_='unique')
     op.drop_constraint(None, 'users', type_='unique')
     op.drop_column('users', 'photo_url')
+    op.alter_column('photos', 'url', existing_type=sa.String(), nullable=True),
     op.add_column('televisions', sa.Column('screen_type', sa.VARCHAR(), autoincrement=False, nullable=False))
     op.alter_column('televisions', 'memory',
                existing_type=sa.INTEGER(),
