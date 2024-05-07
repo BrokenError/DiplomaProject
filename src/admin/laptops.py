@@ -1,16 +1,11 @@
-from sqladmin import ModelView
-
+from admin.products import BaseTechnic
 from db.models import Laptop
+from field_names_ru import LaptopFields
 
 
-class LaptopAdmin(ModelView, model=Laptop):
-    column_list = '__all__'
+class LaptopAdmin(BaseTechnic, model=Laptop):
+    column_labels = LaptopFields
     column_searchable_list = [Laptop.name, Laptop.id]
     column_default_sort = [(Laptop.id, True)]
-    can_create = True
-    can_edit = True
-    can_delete = True
-    can_view_details = True
-    category = "Категории товаров"
-    plural = "Ноутбук"
+    name = "Ноутбук"
     name_plural = "Ноутбуки"

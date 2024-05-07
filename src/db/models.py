@@ -1,8 +1,11 @@
 import datetime
 
+from fastapi_storages.integrations.sqlalchemy import FileType
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Numeric, Table
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
+
+from settings import settings_app
 
 Base = declarative_base()
 
@@ -27,11 +30,11 @@ class Camera(Base):
 class User(CustomBase):
     __tablename__ = 'users'
 
-    email = Column(String, nullable=False)
+    email = Column(String, nullable=False, unique=True)
     first_name = Column(String, nullable=True)
     last_name = Column(String, nullable=True)
-    phone_number = Column(String(12), nullable=True)
-    is_deleted = Column(Boolean, nullable=False, default=False)
+    phone_number = Column(String(12), nullable=True, unique=True)
+    photo_url = Column(FileType(storage=settings_app.PATH_STORAGE_USER), nullable=True)
 
     def __str__(self):
         return f'Пользователь «{self.email}»'
@@ -45,26 +48,26 @@ class OrderItem(Base):
     id_user = Column(Integer, ForeignKey('users.id'), nullable=False)
     id_product = Column(Integer, ForeignKey('products.id'), nullable=False)
     quantity = Column(Integer, nullable=False, default=1)
-    is_deleted = Column(Boolean, nullable=False, default=False)
 
     order = relationship('Order')
     user = relationship('User')
     product = relationship('Product')
 
     def __str__(self):
-        return f'Товар №{self.id_product}'
+        return f'Товар в корзине с №{self.id_product}'
 
 
 class Order(CustomBase):
     __tablename__ = 'orders'
 
     id_user = Column(Integer, ForeignKey('users.id'), nullable=False)
-    description = Column(String, nullable=True)
-    status = Column(String, nullable=False, default='created')
+    status = Column(String, nullable=False, default='assembly')
+    payment_method = Column(String, nullable=False)
+    is_paid = Column(Boolean, nullable=False, default=False)
     is_deleted = Column(Boolean, nullable=False, default=False)
 
     user = relationship('User')
-    order_item = relationship('OrderItem', back_populates='order')
+    order_items = relationship('OrderItem', back_populates='order')
 
     def __str__(self):
         return f'Заказ №{self.id}'
@@ -94,7 +97,7 @@ class Photo(Base):
     __tablename__ = 'photos'
 
     id = Column(Integer, primary_key=True)
-    url = Column(String, nullable=False, index=True)
+    url = Column(FileType(storage=settings_app.PATH_STORAGE_BASE), nullable=False)
 
     products = relationship("Product", secondary="product_photo", back_populates="photos")
 
@@ -111,6 +114,7 @@ class Product(CustomBase):
     type = Column(String, nullable=False, index=True)
     name = Column(String, nullable=False)
     color_main = Column(String, nullable=False)
+    color_hex = Column(String, nullable=False)
     material = Column(String, nullable=False)
     model = Column(String, nullable=False)
     height = Column(Numeric(precision=6, scale=2), nullable=False)
@@ -141,10 +145,9 @@ class Product(CustomBase):
 class Technics(Product):
     __abstract__ = True
 
-    screen_format = Column(String, nullable=False)
     operating_system = Column(String, nullable=False)
-    memory_ram = Column(Integer, nullable=False)
-    memory = Column(Integer, nullable=False)
+    memory_ram = Column(Integer, nullable=True)
+    memory = Column(Integer, nullable=True)
     matrix_frequency = Column(Integer, nullable=False)
     matrix_type = Column(String, nullable=False)
     matrix_brightness = Column(String, nullable=False)
@@ -156,9 +159,9 @@ class Technics(Product):
         nullable=False,
         default=datetime.datetime.now()
     )
-    screen_resolution = Column(String, nullable=False)
-    screen_type = Column(String, nullable=False)
     screen_diagonal = Column(String, nullable=False)
+    screen_resolution = Column(String, nullable=False)
+    screen_format = Column(String, nullable=False)
     color_other = Column(String, nullable=True)
 
 
@@ -239,7 +242,7 @@ class Laptop(Technics):
     wifi_standard = Column(String, nullable=True)
     sound_power = Column(String, nullable=True)
     hdmi_ports = Column(Boolean, nullable=False)
-    usb_devices = Column(String, nullable=True)
+    usb_ports = Column(String, nullable=True)
     battery_life = Column(Numeric(precision=5, scale=3), nullable=False)
     microphone = Column(Boolean, nullable=False, default=True)
 

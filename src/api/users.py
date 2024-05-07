@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends
 
-from apps.commons.services.base import ServiceAuthenticate
 from apps.users.schemas import UserOut, UserUpdate, UserIn, UserAuthenticate, TokenOut, TokenIn
 from apps.users.services import UserService
 
@@ -8,7 +7,7 @@ router = APIRouter(prefix='/users', tags=['Users'])
 
 
 @router.get(
-    path='/{id_user}',
+    path='/',
     response_model=UserOut,
     name='Get user',
     description='Get user',
@@ -16,10 +15,9 @@ router = APIRouter(prefix='/users', tags=['Users'])
     tags=['Users'],
 )
 async def get(
-        id_user: int,
         user_service: UserService = Depends(UserService.from_request_private)
 ) -> UserOut:
-    return await user_service.get(id_instance=id_user)
+    return await user_service.get()
 
 
 @router.post(
@@ -30,13 +28,10 @@ async def get(
 )
 async def send_message(
         data: UserIn,
-        user_service: UserService = Depends(UserService.from_request)
+        user_service: UserService = Depends(UserService.from_request_protected)
 ):
-    if data.email:
-        await user_service.send_message_email(email=data.email)
-    else:
-        await user_service.send_message_phone(phone=data.phone)
-    return {"status": "success"}
+    code = await user_service.send_message_email(email=data.email)
+    return {"status": f"Confirmation code: {code}"}
 
 
 @router.post(
@@ -48,7 +43,7 @@ async def send_message(
 )
 async def authenticate(
         data: UserAuthenticate,
-        user_service: UserService = Depends(UserService.from_request)
+        user_service: UserService = Depends(UserService.from_request_protected)
 ):
     return await user_service.authenticate_user(user_auth=data)
 
@@ -62,35 +57,33 @@ async def authenticate(
 )
 async def get_valid_token(
         data: TokenIn,
-        user_service: UserService = Depends(UserService.from_request)
+        user_service: UserService = Depends(UserService.from_request_protected)
 ) -> TokenOut:
     return await user_service.get_valid_token(data=data)
 
 
 @router.patch(
-    path='/{id_user}',
+    path='/',
     response_model=UserOut,
     name='Update user',
     description='Update user',
     tags=['Users']
 )
 async def update(
-        id_user: int,
         data: UserUpdate,
         user_service: UserService = Depends(UserService.from_request_private)
 ) -> UserOut:
-    return await user_service.update(id_instance=id_user, data=data)
+    return await user_service.update(data=data)
 
 
 @router.delete(
-    path='/{id_user}',
+    path='/',
     response_model=UserOut,
     name='Delete user',
     description='Delete user',
     tags=['Users']
 )
 async def delete(
-        id_user: int,
         user_service: UserService = Depends(UserService.from_request_private)
 ) -> UserOut:
-    return await user_service.delete(id_instance=id_user)
+    return await user_service.delete(id_instance=None)

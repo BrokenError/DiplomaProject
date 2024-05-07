@@ -1,9 +1,10 @@
 from fastapi import APIRouter
 
 from api.accessories import router as accessory_router
+from api.carts import router as cart_router
 from api.favourites import router as favourite_router
 from api.laptops import router as laptop_router
-from api.order import router as order_router
+from api.orders import router as order_router
 from api.products import router as product_router
 from api.smartphones import router as smartphone_router
 from api.smartwatches import router as smartwatch_router
@@ -23,3 +24,4 @@ router.include_router(television_router)
 router.include_router(user_router)
 router.include_router(favourite_router)
 router.include_router(order_router)
+router.include_router(cart_router)
