@@ -1,23 +1,24 @@
+
+from enum import Enum
 from typing import Optional, List
 
 from pydantic import BaseModel, Field
+from pydantic.types import PositiveInt
 
 from apps.products.schemas import ProductPhoto
 
 
+class OrderStatus(str, Enum):
+    CART = 'cart'
+    ASSEMBLY = 'assembly'
+    READY = 'ready'
+    GOT = 'got'
+
+
 class OrderIn(BaseModel):
+    order_items: List[PositiveInt]
     description: Optional[str] = Field()
-    status: str = Field(default="cart")
-
-    class Config:
-        orm_mode = True
-
-
-class OrderItemIn(BaseModel):
-    id_order: int = Field()
-    id_user: int = Field()
-    id_product: int = Field()
-    quantity: int = Field(default=1)
+    status: OrderStatus
 
     class Config:
         orm_mode = True
@@ -31,7 +32,7 @@ class OrderItemOut(BaseModel):
 
 
 class OrderOut(BaseModel):
-    id: int = Field()
+    id: PositiveInt = Field()
     description: Optional[str] = Field()
     status: str = Field()
     order_item: Optional[List[OrderItemOut]] = Field()
@@ -41,7 +42,7 @@ class OrderOut(BaseModel):
 
 
 class OrderShort(BaseModel):
-    id: int = Field()
+    id: PositiveInt = Field()
     description: Optional[str] = Field()
     status: str = Field()
     order_item: Optional[List[OrderItemOut]] = Field()

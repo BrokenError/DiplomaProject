@@ -1,30 +1,41 @@
-from pydantic import BaseModel, Field
+from typing import List, Optional
 
-from apps.products.schemas import ProductOut
+from pydantic import BaseModel, Field
+from pydantic.types import PositiveInt
+
+from apps.products.schemas import ProductShort
 
 
 class FavouriteIn(BaseModel):
-    id_product: int = Field()
+    id_product: PositiveInt = Field()
+
+    class Config:
+        orm_mode = True
+
+
+class FavouriteOut(BaseModel):
+    id_product: PositiveInt = Field()
 
     class Config:
         orm_mode = True
 
 
 class FavouriteDelete(BaseModel):
-    id_product: int = Field()
-    id_user: int = Field()
+    id_product: PositiveInt = Field()
+    id_user: PositiveInt = Field()
 
 
 class FavouriteShort(BaseModel):
-    id_product: int = Field()
-    id_user: int = Field()
+    product: Optional[ProductShort] = Field()
 
     class Config:
         orm_mode = True
+        allow_population_by_field_name = True
+        smart_union = True
 
 
 class FavouriteList(BaseModel):
-    items: list[FavouriteShort]
+    items: List[FavouriteShort]
 
     class Config:
         orm_mode = True
