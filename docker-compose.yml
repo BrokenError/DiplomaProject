@@ -37,16 +37,15 @@ services:
   nginx:
     container_name: nginx_techzone
     build:
-      context: src/
-      dockerfile: nginx/Dockerfile
+      dockerfile: src/nginx/Dockerfile
     ports:
       - "80:80"
       - "443:443"
     restart: always
     volumes:
       - ./techzone/letsencrypt:/etc/letsencrypt
-      - ./techzone/static:/src/static
-      - ./techzone/media:/src/media
+      - ./techzone/static:/static
+      - ./techzone/media:/media
 
     networks:
       - techzone
