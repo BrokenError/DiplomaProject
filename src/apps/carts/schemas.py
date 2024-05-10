@@ -1,6 +1,7 @@
 from typing import Optional
 
 from pydantic import BaseModel, Field
+from pydantic.types import PositiveInt
 
 from apps.products.schemas import ProductCustom
 
@@ -28,6 +29,7 @@ class CartOut(BaseModel):
 
 
 class CartShort(BaseModel):
+    id: PositiveInt = Field()
     product: ProductCustom = Field()
     quantity: Optional[int] = Field(gte=0)
 

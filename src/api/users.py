@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends
+from typing import Optional
 
-from apps.users.schemas import UserOut, UserUpdate, UserIn, UserAuthenticate, TokenOut, TokenIn
+from fastapi import APIRouter, Depends, File, UploadFile, Form
+
+from apps.users.schemas import UserOut, UserIn, UserAuthenticate, TokenOut, TokenIn, UserUpdate
 from apps.users.services import UserService
 
 router = APIRouter(prefix='/users', tags=['Users'])
@@ -30,8 +32,8 @@ async def send_message(
         data: UserIn,
         user_service: UserService = Depends(UserService.from_request_protected)
 ):
-    code = await user_service.send_message_email(email=data.email)
-    return {"status": f"Confirmation code: {code}"}
+    await user_service.send_message_email(email=data.email)
+    return {"status": "success"}
 
 
 @router.post(
@@ -70,10 +72,18 @@ async def get_valid_token(
     tags=['Users']
 )
 async def update(
-        data: UserUpdate,
+        photo: Optional[UploadFile] = File(),
+        first_name: Optional[str] = Form(None),
+        last_name: Optional[str] = Form(None),
+        phone_number: Optional[str] = Form(None),
         user_service: UserService = Depends(UserService.from_request_private)
 ) -> UserOut:
-    return await user_service.update(data=data)
+    data = UserUpdate(
+        first_name=first_name,
+        last_name=last_name,
+        phone_number=phone_number
+    )
+    return await user_service.update(data=data, photo=photo)
 
 
 @router.delete(

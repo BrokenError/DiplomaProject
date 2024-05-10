@@ -12,7 +12,8 @@ from apps.commons.managers.base import ManagerBase
 from apps.commons.pagination.mixins import MixinPagination
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.services.interface import InterfaceService
-from db.models import Product
+from apps.orders.schemas import OrderStatus
+from db.models import Product, Order, OrderItem
 from settings import settings_app
 
 
@@ -33,8 +34,8 @@ class ServiceAuthenticate:
     def protected(request: Request):
         try:
             token = request.headers["Authorization"].split("Bearer ")[-1]
-            jwt.decode(token, settings_app.SECRET_KEY, algorithms=[settings_app.ALGORITHM])
-            return True
+            token_decoded = jwt.decode(token, settings_app.SECRET_KEY, algorithms=[settings_app.ALGORITHM])
+            return token_decoded["sub"]
         except (JWTError, KeyError, ValueError):
             return False
 
@@ -81,6 +82,30 @@ class ServiceBase(InterfaceService, MixinPagination):
             manager: ManagerBase = Depends(ManagerBase.from_request)
     ):
         return cls(manager=manager, id_user=id_user)
+
+    @staticmethod
+    def get_updated_photo_url(instance: Model) -> Model:
+        for photo in instance.photos:
+            if not photo.url.startswith('http'):
+                photo.url = settings_app.BASE_URL + photo.url
+        return instance
+
+    async def check_product_in_cart(self, instance: Model) -> Model:
+        is_in_cart = (await self.manager.execute(
+            select(exists()
+                   .where(Order.id_user == self.id_user)
+                   .where(Order.id == OrderItem.id_order)
+                   .where(Order.status == OrderStatus.CART)
+                   .where(OrderItem.id_user == self.id_user)
+                   .where(OrderItem.id_product == instance.id))
+        )).scalar()
+        if is_in_cart:
+            instance.is_in_cart = is_in_cart
+        return instance
+
+    async def check_favourites(self, instance: Model, favourite_service) -> Model:
+        instance.is_favourite = await favourite_service.check_exists(id_product=instance.id, id_user=self.id_user)
+        return instance
 
     async def validate_data(self, id_instance: Optional[int], data: BaseModel) -> BaseModel:
         return data

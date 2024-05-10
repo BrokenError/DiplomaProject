@@ -43,19 +43,19 @@ class OrderService(ServiceBase):
 
         user_order_cart = await order_item_service.get_order_cart()
 
-        for id_product in data['order_items']:
+        for id_order_item in data['ids_order_items']:
             item = (
                 await self.manager.execute(
                     order_item_service.select_visible(
                         id_user=order.id_user,
-                        id_product=id_product,
+                        id=id_order_item,
                         id_order=user_order_cart.id
                     ))
             ).scalars().first()
             if item is None:
                 raise HTTPException(status_code=404, detail="The item does not in cart")
             item.id_order = order.id
-            await order_item_service.manager.session.commit()
+        await order_item_service.manager.session.commit()
 
         return order
 
@@ -92,7 +92,11 @@ class OrderService(ServiceBase):
             query: Optional[Select] = None,
     ):
         query = select(self.Model).where(self.Model.status != self.STATUS)
-        return await super().list(filters=filters, orderings=orderings, pagination=pagination, query=query)
+        result = await super().list(filters=filters, orderings=orderings, pagination=pagination, query=query)
+        for order in result['items']:
+            for order_item in order.order_items:
+                self.get_updated_photo_url(order_item.product)
+        return result
 
     async def get(self, id_instance: int) -> Model:
         instance = await self.get_instance(id_instance=id_instance)
@@ -100,4 +104,6 @@ class OrderService(ServiceBase):
             raise HTTPException(status_code=404, detail=f"The order does not exist")
         if instance.id_user != self.id_user:
             raise HTTPException(status_code=403, detail="Access denied")
+        for order_item in instance.order_items:
+            self.get_updated_photo_url(order_item.product)
         return instance

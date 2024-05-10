@@ -16,7 +16,7 @@ router = APIRouter(prefix='/favourites', tags=['Favourites'])
     tags=['Favourites'],
 )
 async def favourites(
-        favourite_service: FavouriteService = Depends(FavouriteService.from_request_protected),
+        favourite_service: FavouriteService = Depends(FavouriteService.from_request_private),
         pagination: Pagination = Depends(get_pagination),
 ) -> FavouriteList:
     return await favourite_service.list_favourites(
