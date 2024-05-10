@@ -74,9 +74,11 @@ class FavouriteService(ServiceBase):
             query: Optional[Select] = None,
     ):
         result = await self.list(filters=filters, orderings=orderings, pagination=pagination, query=query)
-        for product in result['items']:
-            await self.get_rating_and_reviews_count(product.product)
-            product.product.is_favourite = True
+        for order_item in result['items']:
+            await self.get_rating_and_reviews_count(order_item.product)
+            await self.check_product_in_cart(order_item.product)
+            self.get_updated_photo_url(order_item.product)
+            order_item.product.is_favourite = True
         return result
 
     async def get_fragment(self, query: Select, limit: Optional[int], offset: int) -> Tuple[List, int]:

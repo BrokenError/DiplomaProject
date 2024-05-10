@@ -4,6 +4,7 @@ from apps.carts.schemas import CartIn, CartList, CartOut, CartUpdate
 from apps.carts.services import CartService
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.pagination.utils import get_pagination
+from apps.favourites.services import FavouriteService
 
 router = APIRouter(prefix='/cart', tags=['Cart'])
 
@@ -17,11 +18,13 @@ router = APIRouter(prefix='/cart', tags=['Cart'])
 )
 async def get_list(
         cart_service: CartService = Depends(CartService.from_request_private),
+        favourite_service: FavouriteService = Depends(FavouriteService.from_request_private),
         pagination: Pagination = Depends(get_pagination),
 ) -> CartList:
     return await cart_service.list(
         filters=None,
         pagination=pagination,
+        favourite_service=favourite_service
     )
 
 

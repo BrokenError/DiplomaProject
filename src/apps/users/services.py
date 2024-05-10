@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 from datetime import timedelta, datetime
@@ -5,17 +6,19 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Optional, Union
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from jose import jwt
 
 from apps.commons.basics.exceptions import ExceptionValidation
 from apps.commons.services import ServiceBase
 from apps.orders.schemas import OrderStatus
-from apps.users.schemas import UserIn, UserAuthenticate, TokenIn
+from apps.users.schemas import UserIn, UserAuthenticate, TokenIn, UserUpdate
 from db.models import User, Order
 from resources.redis_services import redis
 from resources.smtp_services import smtp_client
 from settings import settings_app
+
+logger = logging.getLogger('users')
 
 
 class UserService(ServiceBase):
@@ -33,6 +36,8 @@ class UserService(ServiceBase):
         if data_extra is None:
             data_extra = dict()
 
+        data = (await self.validate_data(None, data)).dict(exclude_unset=True) if data else dict()
+
         user = await self.manager.create(
             self.Model,
             data | data_extra
@@ -41,10 +46,35 @@ class UserService(ServiceBase):
         return user
 
     async def get(self, id_instance: Optional[int] = None) -> Model:
-        instance = await self.get_instance(id_instance or int(self.id_user))
+        instance = await self.get_instance(id_instance or self.id_user)
         if not instance:
             raise HTTPException(status_code=404, detail="Такого пользователя не существует")
+        instance.photo_url = settings_app.BASE_URL + instance.photo_url
         return instance
+
+    async def update(
+        self,
+        id_instance: Optional[int] = None,
+        *,
+        data: Optional[UserUpdate] = None,
+        data_extra: Optional[dict] = None,
+        photo: Optional[UploadFile] = None
+    ) -> Model:
+        if photo:
+            try:
+                file_path = f"{settings_app.PATH_STORAGE_USER._path}/{photo.filename}"
+                data.photo_url = photo
+                async with open(file_path, "wb") as buffer:
+                    buffer.write(await photo.read())
+            except Exception:
+                logger.error(f'Не удалось загрузить фото пользователя с id = {self.id_user}')
+
+        data = (await self.validate_data(None, data)).dict(exclude_unset=True) if data else dict()
+
+        return await self.manager.update(
+            await self.get(id_instance),
+            data
+        )
 
     def authorize(self, id_user: int):
         token_access = self.create_token(

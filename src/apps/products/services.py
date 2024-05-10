@@ -4,7 +4,7 @@ from typing import Optional, List, Tuple
 
 from fastapi import HTTPException
 from pydantic.types import Decimal
-from sqlalchemy import func, select, exists
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload, selectin_polymorphic
 from sqlalchemy.sql import Select
 
@@ -13,8 +13,7 @@ from apps.commons.pagination.schemas import Pagination
 from apps.commons.services.base import ServiceBase, ServiceAuthenticate
 from apps.favourites.services import FavouriteService
 from apps.products.schemas import ProductIn
-from db.models import Product, Review, Tablet, Accessory, Television, Smartphone, Smartwatch, Laptop, User, Order, \
-    OrderItem
+from db.models import Product, Review, Tablet, Accessory, Television, Smartphone, Smartwatch, Laptop, User
 from settings import settings_app
 
 logger = logging.getLogger('products')
@@ -92,32 +91,6 @@ class ProductService(ServiceBase):
         instance.reviews = modified_reviews
         return instance
 
-    @staticmethod
-    def get_updated_photo_url(instance: Model) -> Model:
-        for photo in instance.photos:
-            if not photo.url.startswith('http'):
-                photo.url = settings_app.BASE_URL + photo.url
-        return instance
-
-    async def check_product_in_cart(self, instance: Model) -> Model:
-        is_in_cart = (
-                await self.manager.execute(
-                    select([exists().where(
-                        (Order.id_user == self.id_user) &
-                        (Order.id == OrderItem.id_order) &
-                        (OrderItem.id_product == instance.id)
-                    )])
-                )
-            ).scalar()
-        if is_in_cart:
-            instance.is_in_cart = is_in_cart
-        return instance
-
-    @staticmethod
-    async def check_favourite(instance: Model, favourite_service) -> Model:
-        instance.is_favourite = await favourite_service.check_exists(id_product=instance.id)
-        return instance
-
     async def get_product(
             self,
             id_instance: int,
@@ -135,11 +108,11 @@ class ProductService(ServiceBase):
         if not instance:
             raise HTTPException(status_code=404, detail="Такого товара не существует")
 
-        instance.is_favourite = False
         await self.get_rating_and_reviews_count(instance)
         await self.get_reviews(instance)
         if self.id_user:
-            await self.check_favourite(instance, favourite_service)
+            await self.check_favourites(instance, favourite_service)
+            await self.check_product_in_cart(instance)
         if hasattr(instance, 'memory'):
             await self.get_memory_variations(instance)
         await self.get_color_variations(instance)
@@ -153,9 +126,17 @@ class ProductService(ServiceBase):
             .where(self.Model.id == id_instance)
         )).scalars().first()
 
-    async def get(self, id_instance: int, is_auth: Optional[ServiceAuthenticate] = None) -> Model:
+    async def get(
+            self,
+            id_instance: int,
+            is_auth: Optional[ServiceAuthenticate] = None,
+            favourite_service: FavouriteService = None
+    ) -> Model:
         product = await super().get(id_instance=id_instance)
         await self.get_rating_and_reviews_count(product)
+        self.get_updated_photo_url(product)
+        await self.check_favourites(product, favourite_service)
+        await self.check_product_in_cart(product)
         return product
 
     async def list_product(
@@ -170,12 +151,11 @@ class ProductService(ServiceBase):
         result = await self.list(filters=filters, orderings=orderings, pagination=pagination, query=query)
         if self.id_user:
             for product in result['items']:
-                await self.check_favourite(product, favourite_service)
+                await self.check_favourites(product, favourite_service)
                 await self.check_product_in_cart(product)
         for product in result['items']:
             await self.get_rating_and_reviews_count(product)
             self.get_updated_photo_url(product)
-            product.is_favourite = False
         return result
 
     async def get_fragment(self, query: Select, limit: Optional[int], offset: int) -> Tuple[List, int]:

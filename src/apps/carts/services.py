@@ -8,12 +8,13 @@ from sqlalchemy.sql import Select
 from apps.carts.schemas import CartIn, CartUpdate
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.services import ServiceBase
+from apps.favourites.services import FavouriteService
+from apps.orders.schemas import OrderStatus
 from db.models import OrderItem, Order, Product
 
 
 class CartService(ServiceBase):
     Model = OrderItem
-    STATUS = 'cart'
 
     async def add(
             self, *,
@@ -41,9 +42,9 @@ class CartService(ServiceBase):
         orderings: Optional[List] = None,
         pagination: Pagination = None,
         query: Optional[Select] = None,
+        favourite_service: FavouriteService = None
     ):
         user_order_cart = await self.get_order_cart()
-
         if query is None:
             query = self.select_visible(id_user=self.id_user, id_order=user_order_cart.id)
 
@@ -60,17 +61,22 @@ class CartService(ServiceBase):
         if pagination is None:
             pagination = Pagination(size_page=-1, number_page=1)
 
-        return await self.list_paginated(
+        result = await self.list_paginated(
             query=query,
             pagination=pagination
         )
+        for order_item in result['items']:
+            await self.check_favourites(order_item.product, favourite_service)
+        for order_item in result['items']:
+            self.get_updated_photo_url(order_item.product)
+        return result
 
     async def get_order_cart(self):
         return (await self.manager.execute(
             select(Order)
             .options(joinedload(Order.order_items))
-            .where(Order.status == self.STATUS)
-            .where(Order.id_user == int(self.id_user))
+            .where(Order.status == OrderStatus.CART)
+            .where(Order.id_user == self.id_user)
         )).scalars().first()
 
     async def update(
@@ -90,7 +96,7 @@ class CartService(ServiceBase):
                 id_order=order.id,
                 id_product=id_product)
             )).scalars().first(),
-            data_update={"quantity": self.Model.quantity + data.quantity}
+            data_update={"quantity": data.quantity}
         )
         return updated_order_item
 
@@ -102,10 +108,10 @@ class CartService(ServiceBase):
                     query.limit(limit)
                     .options(selectinload(OrderItem.product).selectinload(Product.photos))
                     .join(OrderItem.product)
-                    .filter(OrderItem.id_user == int(self.id_user))
+                    .filter(OrderItem.id_user == self.id_user)
                     .offset(offset)
                     .join(Order)
-                    .where(Order.status == self.STATUS)
+                    .where(Order.status == OrderStatus.CART)
                     .where(self.Model.id_order == Order.id)
                 )
             ).scalars().all(),

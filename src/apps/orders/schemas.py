@@ -22,7 +22,7 @@ class OrderPayment(str, Enum):
 
 
 class OrderIn(BaseModel):
-    order_items: List[PositiveInt]
+    ids_order_items: List[PositiveInt]
     payment_method: OrderPayment
 
     class Config:
@@ -30,6 +30,7 @@ class OrderIn(BaseModel):
 
 
 class OrderItemOut(BaseModel):
+    id: PositiveInt = Field()
     product: ProductPhoto = Field()
     quantity: PositiveInt = Field()
 
