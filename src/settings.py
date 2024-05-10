@@ -26,8 +26,10 @@ class SettingsApp(BaseSettings):
     BASE_URL = ''
     CATEGORIES: str = ''
     URL_ADMIN = ''
-    PATH_STORAGE_BASE = FileSystemStorage(path='/techzone/static')
-    PATH_STORAGE_USER = FileSystemStorage(path='/techzone/media/users')
+    PATH_BASE = ''
+    PATH_USER = ''
+    PATH_STORAGE_BASE = FileSystemStorage(path=PATH_BASE)
+    PATH_STORAGE_USER = FileSystemStorage(path=PATH_USER)
     NAME_SERVICE: str = _NAME_SERVICE_DEFAULT
     SERVER_HOST: str = '0.0.0.0'
     SERVER_PORT: int = 8001

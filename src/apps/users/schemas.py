@@ -21,6 +21,7 @@ class UserOut(BaseModel):
     id: int = Field()
     email: str = Field()
     last_name: Optional[str] = Field()
+    photo_url: Optional[str] = Field()
     first_name: Optional[str] = Field()
     phone_number: Optional[str] = Field()
     date_created: datetime = Field()
@@ -42,6 +43,7 @@ class UserUpdate(BaseModel):
     first_name: Optional[str] = Field()
     last_name: Optional[str] = Field()
     phone_number: Optional[str] = Field()
+    photo_url: Optional[str] = Field()
 
     class Config:
         orm_mode = True
