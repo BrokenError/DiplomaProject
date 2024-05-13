@@ -2,7 +2,10 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from pydantic import BaseModel, Field
+from pydantic.class_validators import validator
 from pydantic.json import timedelta_isoformat
+
+from settings import settings_app
 
 
 class UserIn(BaseModel):
@@ -34,6 +37,12 @@ class UserOut(BaseModel):
         }
         smart_union = True
 
+    @validator("photo_url", pre=True)
+    def add_base_url(cls, value):
+        if value:
+            return f"{settings_app.BASE_URL}{value}"
+        return None
+
 
 class UserShort(BaseModel):
     ...
@@ -43,7 +52,7 @@ class UserUpdate(BaseModel):
     first_name: Optional[str] = Field()
     last_name: Optional[str] = Field()
     phone_number: Optional[str] = Field()
-    photo_url: Optional[str] = Field()
+    photo_url: Optional[str] = Field(None, init=False)
 
     class Config:
         orm_mode = True

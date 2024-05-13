@@ -2,6 +2,7 @@ import re
 from typing import Any
 
 import wtforms
+from markupsafe import Markup
 from sqladmin import ModelView
 from starlette.requests import Request
 
@@ -16,6 +17,16 @@ from settings import settings_app
 class UserAdmin(ModelView, model=User):
     column_list = '__all__'
     column_labels = UserFields
+    column_formatters = {
+        "photo_url": lambda m, a: Markup(
+            f'<a href="{settings_app.BASE_URL}{m.photo_url}">{settings_app.BASE_URL}{m.photo_url}</a>'
+        ) if m.photo_url else ''
+    }
+    column_formatters_detail = {
+        "photo_url": lambda m, a: Markup(
+            f'<a href="{settings_app.BASE_URL}{m.photo_url}">{settings_app.BASE_URL}{m.photo_url}</a>'
+        ) if m.photo_url else ''
+    }
     form_excluded_columns = ['date_created']
     column_searchable_list = [User.email, User.phone_number, User.first_name, User.last_name]
     column_default_sort = [(User.id, True)]

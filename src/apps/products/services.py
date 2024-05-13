@@ -116,7 +116,6 @@ class ProductService(ServiceBase):
         if hasattr(instance, 'memory'):
             await self.get_memory_variations(instance)
         await self.get_color_variations(instance)
-        self.get_updated_photo_url(instance)
         return instance
 
     async def get_instance(self, id_instance: int) -> Model:
@@ -126,6 +125,10 @@ class ProductService(ServiceBase):
             .where(self.Model.id == id_instance)
         )).scalars().first()
 
+    async def get_type_product(self, id_instance: int) -> Model:
+        product = await super().get(id_instance=id_instance)
+        return product
+
     async def get(
             self,
             id_instance: int,
@@ -134,9 +137,9 @@ class ProductService(ServiceBase):
     ) -> Model:
         product = await super().get(id_instance=id_instance)
         await self.get_rating_and_reviews_count(product)
-        self.get_updated_photo_url(product)
-        await self.check_favourites(product, favourite_service)
-        await self.check_product_in_cart(product)
+        if self.id_user:
+            await self.check_favourites(product, favourite_service)
+            await self.check_product_in_cart(product)
         return product
 
     async def list_product(
@@ -155,7 +158,6 @@ class ProductService(ServiceBase):
                 await self.check_product_in_cart(product)
         for product in result['items']:
             await self.get_rating_and_reviews_count(product)
-            self.get_updated_photo_url(product)
         return result
 
     async def get_fragment(self, query: Select, limit: Optional[int], offset: int) -> Tuple[List, int]:

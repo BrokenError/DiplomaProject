@@ -10,6 +10,7 @@ from apps.carts.services import CartService
 from apps.commons.basics.exceptions import ExceptionValidation
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.services.base import ServiceBase
+from apps.favourites.services import FavouriteService
 from apps.orders.schemas import OrderIn, OrderStatus
 from db.models import Product, Order, OrderItem, Photo
 
@@ -93,17 +94,15 @@ class OrderService(ServiceBase):
     ):
         query = select(self.Model).where(self.Model.status != self.STATUS)
         result = await super().list(filters=filters, orderings=orderings, pagination=pagination, query=query)
-        for order in result['items']:
-            for order_item in order.order_items:
-                self.get_updated_photo_url(order_item.product)
         return result
 
-    async def get(self, id_instance: int) -> Model:
+    async def get(self, id_instance: int, favourite_service: FavouriteService = None) -> Model:
         instance = await self.get_instance(id_instance=id_instance)
         if not instance:
             raise HTTPException(status_code=404, detail=f"The order does not exist")
         if instance.id_user != self.id_user:
             raise HTTPException(status_code=403, detail="Access denied")
         for order_item in instance.order_items:
-            self.get_updated_photo_url(order_item.product)
+            await self.check_product_in_cart(order_item.product)
+            await self.check_favourites(order_item.product, favourite_service)
         return instance

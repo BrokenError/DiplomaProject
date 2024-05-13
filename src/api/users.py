@@ -72,7 +72,7 @@ async def get_valid_token(
     tags=['Users']
 )
 async def update(
-        photo: Optional[UploadFile] = File(),
+        photo: Optional[UploadFile] = File(None),
         first_name: Optional[str] = Form(None),
         last_name: Optional[str] = Form(None),
         phone_number: Optional[str] = Form(None),

@@ -19,9 +19,9 @@ router = APIRouter(prefix='/products', tags=['Products'])
 )
 async def get_type_product(
         id_product: int,
-        product_service: ProductService = Depends(ProductService.from_request_protected),
+        product_service: ProductService = Depends(ProductService.from_request_protected)
 ) -> ProductType:
-    return await product_service.get(id_instance=id_product)
+    return await product_service.get_type_product(id_instance=id_product)
 
 
 @router.get(

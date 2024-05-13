@@ -83,13 +83,6 @@ class ServiceBase(InterfaceService, MixinPagination):
     ):
         return cls(manager=manager, id_user=id_user)
 
-    @staticmethod
-    def get_updated_photo_url(instance: Model) -> Model:
-        for photo in instance.photos:
-            if not photo.url.startswith('http'):
-                photo.url = settings_app.BASE_URL + photo.url
-        return instance
-
     async def check_product_in_cart(self, instance: Model) -> Model:
         is_in_cart = (await self.manager.execute(
             select(exists()
