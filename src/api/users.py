@@ -9,7 +9,7 @@ router = APIRouter(prefix='/users', tags=['Users'])
 
 
 @router.get(
-    path='/',
+    path='',
     response_model=UserOut,
     name='Get user',
     description='Get user',
@@ -65,7 +65,7 @@ async def get_valid_token(
 
 
 @router.patch(
-    path='/',
+    path='',
     response_model=UserOut,
     name='Update user',
     description='Update user',
@@ -87,7 +87,7 @@ async def update(
 
 
 @router.delete(
-    path='/',
+    path='',
     response_model=UserOut,
     name='Delete user',
     description='Delete user',

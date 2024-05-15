@@ -1,10 +1,12 @@
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
+from enum import Enum
 from typing import Optional, List
 
 from pydantic import BaseModel, PositiveInt, Field
 from pydantic.class_validators import validator
 
-from apps.reviews.schemas import ReviewOut
+from apps.commons.pagination.schemas import MetaPage
+from apps.reviews.schemas import ReviewCustom
 from settings import settings_app
 
 
@@ -72,7 +74,7 @@ class ProductShort(ProductBase):
     discount: Optional[int] = Field()
     reviews_count: Optional[int] = Field()
     average_rating: Optional[float] = Field()
-    is_favourite: Optional[bool] = Field()
+    is_favourite: Optional[bool] = Field(default=False)
     is_in_cart: Optional[bool] = Field(default=False)
 
     class Config:
@@ -101,7 +103,7 @@ class ProductOut(ProductBase):
     average_rating: Optional[float] = Field()
     is_favourite: Optional[bool] = Field()
     is_in_cart: Optional[bool] = Field(default=False)
-    reviews: Optional[List[ReviewOut]] = Field()
+    reviews: Optional[List[ReviewCustom]] = Field()
     color_variations: List[dict] = Field(default_factory=list)
 
     class Config:
@@ -120,6 +122,7 @@ class ProductType(BaseModel):
 
 class ProductList(BaseModel):
     items: List[ProductShort]
+    meta: MetaPage
 
     class Config:
         orm_mode = True
@@ -168,7 +171,7 @@ class TechnicOut(ProductOut):
     color_other: str = Field()
     memory_ram: int = Field()
     memory: int = Field()
-    reviews: List[ReviewOut] = Field(default_factory=list)
+    reviews: List[ReviewCustom] = Field(default_factory=list)
     memory_variations: List[PositiveInt] = Field(default_factory=list)
 
 
@@ -178,3 +181,19 @@ class TechnicList(ProductList):
 
 class ProductPhoto(ProductBase):
     discount: Optional[str] = Field()
+
+
+class SuggestionOut(BaseModel):
+    suggestions: Optional[List[str]] = Field(default=None)
+
+    class Config:
+        orm_mode = True
+
+
+class CategoryEnum(str, Enum):
+    television = "телевизор"
+    laptop = "ноутбук"
+    tablet = "планшет"
+    smartphone = "смартфон"
+    smartwatch = "часы"
+    accessory = "аксессуар"
