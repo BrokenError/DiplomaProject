@@ -6,6 +6,7 @@ from api.favourites import router as favourite_router
 from api.laptops import router as laptop_router
 from api.orders import router as order_router
 from api.products import router as product_router
+from api.reviews import router as review_router
 from api.smartphones import router as smartphone_router
 from api.smartwatches import router as smartwatch_router
 from api.tablets import router as tablet_router
@@ -25,3 +26,4 @@ router.include_router(user_router)
 router.include_router(favourite_router)
 router.include_router(order_router)
 router.include_router(cart_router)
+router.include_router(review_router)

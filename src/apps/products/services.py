@@ -3,6 +3,7 @@ from decimal import ROUND_HALF_UP
 from typing import Optional, List, Tuple
 
 from fastapi import HTTPException
+from fuzzywuzzy import process
 from pydantic.types import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload, selectin_polymorphic
@@ -12,7 +13,7 @@ from apps.commons.managers.base import ManagerBase
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.services.base import ServiceBase, ServiceAuthenticate
 from apps.favourites.services import FavouriteService
-from apps.products.schemas import ProductIn
+from apps.products.schemas import ProductIn, CategoryEnum
 from db.models import Product, Review, Tablet, Accessory, Television, Smartphone, Smartwatch, Laptop, User
 from settings import settings_app
 
@@ -21,6 +22,7 @@ logger = logging.getLogger('products')
 
 class ProductService(ServiceBase):
     Model = Product
+    THRESHOLD = 50
 
     def __init__(self, manager: ManagerBase, id_user, *args, **kwargs) -> None:
         super().__init__(manager, id_user, *args, **kwargs)
@@ -30,6 +32,57 @@ class ProductService(ServiceBase):
         product = await super().create(data=data, data_extra=data_extra)
         await self.manager.session.refresh(product)
         return product
+
+    async def search(
+            self,
+            query: str,
+            pagination: Pagination = None,
+            favourite_service: FavouriteService = None
+    ):
+        if not query:
+            raise HTTPException(status_code=400, detail='Query is required')
+
+        products = (
+            await self.manager.execute(self.select_visible())
+        ).scalars().all()
+
+        product_data_for_search = {
+            f"{CategoryEnum[product.type].value}{product.type}{product.model}{product.name}{product.material}{product.color_main}":
+                product.id for product in products
+        }
+
+        matches = process.extract(query, product_data_for_search.keys())
+        result_prod_ids = [
+            product_data_for_search.get(f'{match[0]}', None)
+            for match in matches if match[1] >= self.THRESHOLD
+        ]
+
+        products = await self.list_paginated(query=(self.get_by_ids(result_prod_ids)), pagination=pagination)
+        products['items'] = sorted(products['items'], key=lambda x: result_prod_ids.index(x.id))
+
+        for item in products['items']:
+            await self.get_rating_and_reviews_count(item)
+            if self.id_user:
+                await self.check_product_in_cart(item)
+                await self.check_favourites(item, favourite_service=favourite_service)
+        return products
+
+    async def get_suggestions(self, query: str):
+        if not query:
+            raise HTTPException(status_code=400, detail='Query is required')
+
+        products_data = (
+            await self.manager.execute(self.select_visible(self.Model.type, self.Model.name, self.Model.model))
+        ).all()
+
+        products_data_list = []
+        for data in products_data:
+            products_data_list.extend(data)
+            products_data_list.append(CategoryEnum[data[0]].value)
+
+        result_search_data = process.extract(query, products_data_list)
+        suggestions = [data[0] for data in result_search_data if data[1] >= self.THRESHOLD]
+        return dict(suggestions=suggestions)
 
     async def get_rating_and_reviews_count(self, instance: Model) -> Model:
         reviews_count_subquery = (
@@ -75,7 +128,7 @@ class ProductService(ServiceBase):
             select(
                 Review.id, Review.rating, Review.text, Review.date_created,
                 func.coalesce(
-                    func.concat(User.first_name, ' ', User.last_name), None
+                    func.concat_ws(' ', User.first_name, User.last_name), None
                 ).label('user'), User.photo_url
             )
             .outerjoin(User, Review.id_user == User.id)
@@ -85,8 +138,6 @@ class ProductService(ServiceBase):
         modified_reviews = []
         for review in reviews:
             review_dict = dict(review)
-            if review_dict['photo_url']:
-                review_dict['photo_url'] = settings_app.BASE_URL + review_dict['photo_url']
             modified_reviews.append(review_dict)
         instance.reviews = modified_reviews
         return instance
@@ -97,11 +148,7 @@ class ProductService(ServiceBase):
             favourite_service: FavouriteService,
     ) -> Model:
         instance = (await self.manager.execute(
-            self.select_visible().options(
-                selectin_polymorphic(Product, [
-                    Tablet, Accessory, Television, Smartphone, Smartwatch, Laptop
-                ])
-            )
+            self.select_visible()
             .options(selectinload(Product.photos))
             .where(self.Model.id == id_instance))).scalars().first()
 
@@ -116,7 +163,6 @@ class ProductService(ServiceBase):
         if hasattr(instance, 'memory'):
             await self.get_memory_variations(instance)
         await self.get_color_variations(instance)
-        self.get_updated_photo_url(instance)
         return instance
 
     async def get_instance(self, id_instance: int) -> Model:
@@ -126,6 +172,10 @@ class ProductService(ServiceBase):
             .where(self.Model.id == id_instance)
         )).scalars().first()
 
+    async def get_type_product(self, id_instance: int) -> Model:
+        product = await super().get(id_instance=id_instance)
+        return product
+
     async def get(
             self,
             id_instance: int,
@@ -134,9 +184,9 @@ class ProductService(ServiceBase):
     ) -> Model:
         product = await super().get(id_instance=id_instance)
         await self.get_rating_and_reviews_count(product)
-        self.get_updated_photo_url(product)
-        await self.check_favourites(product, favourite_service)
-        await self.check_product_in_cart(product)
+        if self.id_user:
+            await self.check_favourites(product, favourite_service)
+            await self.check_product_in_cart(product)
         return product
 
     async def list_product(
@@ -155,7 +205,6 @@ class ProductService(ServiceBase):
                 await self.check_product_in_cart(product)
         for product in result['items']:
             await self.get_rating_and_reviews_count(product)
-            self.get_updated_photo_url(product)
         return result
 
     async def get_fragment(self, query: Select, limit: Optional[int], offset: int) -> Tuple[List, int]:

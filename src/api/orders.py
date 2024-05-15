@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends
 from apps.carts.services import CartService
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.pagination.utils import get_pagination
-from apps.orders.schemas import OrderList, OrderOut, OrderIn, OrderShort
+from apps.favourites.services import FavouriteService
+from apps.orders.schemas import OrderList, OrderOut, OrderIn, OrderCustom
 from apps.orders.services import OrderService
 
 router = APIRouter(prefix='/orders', tags=['Orders'])
@@ -31,13 +32,14 @@ async def get_list(
     name='Get order',
     description='Get order',
     tags=['Orders'],
-    response_model=OrderShort
+    response_model=OrderCustom
 )
 async def get(
         id_order: int,
         order_service: OrderService = Depends(OrderService.from_request_private),
-) -> OrderOut:
-    return await order_service.get(id_instance=id_order)
+        favourite_service: FavouriteService = Depends(FavouriteService.from_request_private)
+) -> OrderCustom:
+    return await order_service.get(id_instance=id_order, favourite_service=favourite_service)
 
 
 @router.post(

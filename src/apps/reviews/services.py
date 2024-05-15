@@ -4,18 +4,37 @@ from typing import Optional
 from fastapi import HTTPException
 
 from apps.commons.services import ServiceBase
-# from apps.reviews.schemas import ReviewIn
+from apps.products.services import ProductService
+from apps.reviews.schemas import ReviewIn, ReviewUpdate
 from db.models import Review
 
-logger = logging.getLogger('smartphones')
+logger = logging.getLogger('reviews')
 
 
 class ReviewService(ServiceBase):
     Model = Review
 
-    async def create(self, *, data=None, data_extra: Optional[dict] = None) -> Model:
-        data = dict(data) | {"id_user": self.id_user} | data_extra
-        if await self.check_exists(id_user=data['id_user'], id_product=data_extra['id_product']):
+    async def create(
+            self,
+            *,
+            data=ReviewIn,
+            data_extra: Optional[dict] = None,
+            product_service: ProductService = None) -> Model:
+        data = (
+            await self.validate_data(None, data)
+        ).dict(exclude_unset=True, exclude_none=True) if data else dict()
+        if await self.check_exists(id_user=self.id_user, id_product=data_extra['id_product']):
             raise HTTPException(status_code=409, detail="Отзыв уже написан")
-        review = await self.manager.create(self.Model, data)
+        if not await product_service.check_exists(id=data_extra['id_product']):
+            raise HTTPException(status_code=404, detail="Товара не существует")
+        review = await self.manager.create(self.Model, data | data_extra | {"id_user": self.id_user})
         return review
+
+    async def update(
+            self,
+            id_instance: Optional[int] = None,
+            *,
+            data: Optional[ReviewUpdate] = None,
+            data_extra: Optional[dict] = None
+    ) -> Model:
+        return await super().update(id_instance, data=data, data_extra={"id_user": self.id_user})

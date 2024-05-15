@@ -22,7 +22,7 @@ class FavouriteService(ServiceBase):
 
         await self.check_product_or_404(data)
 
-        if await self.check_exists(**data):
+        if await self.check_exists(**data, id_user=self.id_user):
             raise HTTPException(status_code=409, detail="The product already added in favourites")
         favourite = await self.manager.create(
             self.Model,
@@ -77,7 +77,6 @@ class FavouriteService(ServiceBase):
         for order_item in result['items']:
             await self.get_rating_and_reviews_count(order_item.product)
             await self.check_product_in_cart(order_item.product)
-            self.get_updated_photo_url(order_item.product)
             order_item.product.is_favourite = True
         return result
 

@@ -1,6 +1,7 @@
 from typing import Any
 from urllib.request import Request
 
+from markupsafe import Markup
 from sqladmin import ModelView
 
 from apps.accessories.services import AccessoryService
@@ -25,7 +26,7 @@ class BaseTechnic(ModelView):
             manager = ManagerBase(session=session)
             service = AccessoryService(manager=manager, id_user=None)
             await manager.update(
-                await service.get(int(pk)),
+                await service.get_type_product(int(pk)),
                 {
                     'is_deleted': True
                 }
@@ -52,6 +53,25 @@ class BaseTechnic(ModelView):
         return await super().insert_model(data=data, request=request)
 
 
+def custom_photo_format(photo):
+    if not photo:
+        return ''
+    formatted_photos = f'<img src="{settings_app.BASE_URL}{photo.url}" height=30px width=30px>'
+    return Markup(formatted_photos)
+
+
+def format_photos(model, formatted_value):
+    return [Markup(custom_photo_format(photo)) for photo in model.photos]
+
+
+BaseTechnic.column_formatters = {
+    'photos': format_photos
+}
+BaseTechnic.column_formatters_detail = {
+    'photos': format_photos
+}
+
+
 class ProductAdmin(BaseTechnic, model=Product):
     column_labels = ProductFields
     column_searchable_list = [Product.name, Product.id]
@@ -69,6 +89,16 @@ class PhotosAdmin(ModelView, model=Photo):
     column_labels = PhotoFields
     column_searchable_list = [Photo.url, Photo.id]
     column_default_sort = [(Product.id, True)]
+    column_formatters = {
+        "url": lambda m, a: Markup(
+            f'<img src="{settings_app.BASE_URL}{m.url}" height=40px, width=40px, alt="Фотография">'
+        ) if m.url else ''
+    }
+    column_formatters_detail = {
+        "url": lambda m, a: Markup(
+            f'<a href="{settings_app.BASE_URL}{m.url}">{settings_app.BASE_URL}{m.url}</a>'
+        ) if m.url else ''
+    }
     can_create = True
     can_edit = True
     can_delete = True
