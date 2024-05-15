@@ -1,10 +1,13 @@
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
+from enum import Enum
 from typing import Optional, List
 
 from pydantic import BaseModel, PositiveInt, Field
-from pydantic.json import timedelta_isoformat
+from pydantic.class_validators import validator
 
-from apps.reviews.schemas import ReviewOut
+from apps.commons.pagination.schemas import MetaPage
+from apps.reviews.schemas import ReviewCustom
+from settings import settings_app
 
 
 class PhotoOut(BaseModel):
@@ -13,6 +16,25 @@ class PhotoOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class ProductBase(BaseModel):
+    id: Optional[PositiveInt] = Field()
+    name: Optional[str] = Field()
+    price: Optional[float] = Field()
+    photos: Optional[List[PhotoOut]] = Field()
+
+    class Config:
+        orm_mode = True
+
+    @validator('photos', pre=True)
+    def validate_photos(cls, value):
+        if value:
+            for photo in value:
+                if not photo.url.startswith('http'):
+                    photo.url = f"{settings_app.BASE_URL}{photo.url}"
+            return value
+        return None
 
 
 class ProductIn(BaseModel):
@@ -36,49 +58,34 @@ class ProductIn(BaseModel):
     class Config:
         orm_mode = True
         allow_population_by_field_name = True
-        json_encoders = {
-            timedelta: timedelta_isoformat,
-        }
         smart_union = True
 
 
-class ProductCustom(BaseModel):
-    id: Optional[PositiveInt] = Field()
-    name: Optional[str] = Field()
-    price: Optional[float] = Field()
+class ProductCustom(ProductBase):
     discount: Optional[int] = Field()
-    photos: Optional[List[PhotoOut]] = Field()
+    is_in_cart: Optional[bool] = Field(default=False)
     is_favourite: Optional[bool] = Field(default=False)
 
     class Config:
         orm_mode = True
 
 
-class ProductShort(BaseModel):
-    id: PositiveInt = Field()
-    name: Optional[str] = Field()
-    price: Optional[float] = Field()
+class ProductShort(ProductBase):
     discount: Optional[int] = Field()
-    photos: Optional[List[PhotoOut]] = Field()
     reviews_count: Optional[int] = Field()
     average_rating: Optional[float] = Field()
-    is_favourite: Optional[bool] = Field()
+    is_favourite: Optional[bool] = Field(default=False)
     is_in_cart: Optional[bool] = Field(default=False)
 
     class Config:
         orm_mode = True
         allow_population_by_field_name = True
-        json_encoders = {
-            timedelta: timedelta_isoformat,
-        }
         smart_union = True
 
 
-class ProductOut(BaseModel):
-    id: PositiveInt = Field()
+class ProductOut(ProductBase):
     date_created: datetime = Field(default=datetime.now())
     model: str = Field()
-    name: str = Field()
     type: str = Field()
     color_main: str = Field()
     material: str = Field()
@@ -87,26 +94,21 @@ class ProductOut(BaseModel):
     width: float = Field()
     weight: float = Field()
     description: Optional[str] = Field()
-    price: float = Field()
     discount: Optional[int] = Field()
     id_provider: int = Field()
     is_active: bool = Field()
     quantity: int = Field()
     equipment: Optional[str] = Field()
-    photos: Optional[List[PhotoOut]] = Field()
     reviews_count: Optional[int] = Field()
     average_rating: Optional[float] = Field()
     is_favourite: Optional[bool] = Field()
     is_in_cart: Optional[bool] = Field(default=False)
-    reviews: Optional[List[ReviewOut]] = Field()
+    reviews: Optional[List[ReviewCustom]] = Field()
     color_variations: List[dict] = Field(default_factory=list)
 
     class Config:
         orm_mode = True
         allow_population_by_field_name = True
-        json_encoders = {
-            timedelta: timedelta_isoformat,
-        }
         smart_union = True
 
 
@@ -120,13 +122,11 @@ class ProductType(BaseModel):
 
 class ProductList(BaseModel):
     items: List[ProductShort]
+    meta: MetaPage
 
     class Config:
         orm_mode = True
         allow_population_by_field_name = True
-        json_encoders = {
-            timedelta: timedelta_isoformat,
-        }
         smart_union = True
 
 
@@ -136,9 +136,6 @@ class ProductDetail(BaseModel):
     class Config:
         orm_mode = True
         allow_population_by_field_name = True
-        json_encoders = {
-            timedelta: timedelta_isoformat,
-        }
         smart_union = True
 
 
@@ -174,7 +171,7 @@ class TechnicOut(ProductOut):
     color_other: str = Field()
     memory_ram: int = Field()
     memory: int = Field()
-    reviews: List[ReviewOut] = Field(default_factory=list)
+    reviews: List[ReviewCustom] = Field(default_factory=list)
     memory_variations: List[PositiveInt] = Field(default_factory=list)
 
 
@@ -182,12 +179,21 @@ class TechnicList(ProductList):
     items: List[TechnicOut]
 
 
-class ProductPhoto(BaseModel):
-    id: PositiveInt = Field()
-    name: Optional[str] = Field()
-    price: Optional[float] = Field()
+class ProductPhoto(ProductBase):
     discount: Optional[str] = Field()
-    photos: Optional[List[PhotoOut]] = Field()
+
+
+class SuggestionOut(BaseModel):
+    suggestions: Optional[List[str]] = Field(default=None)
 
     class Config:
         orm_mode = True
+
+
+class CategoryEnum(str, Enum):
+    television = "телевизор"
+    laptop = "ноутбук"
+    tablet = "планшет"
+    smartphone = "смартфон"
+    smartwatch = "часы"
+    accessory = "аксессуар"

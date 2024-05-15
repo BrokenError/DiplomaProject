@@ -65,10 +65,9 @@ class CartService(ServiceBase):
             query=query,
             pagination=pagination
         )
-        for order_item in result['items']:
+        for order_item in result["items"]:
             await self.check_favourites(order_item.product, favourite_service)
-        for order_item in result['items']:
-            self.get_updated_photo_url(order_item.product)
+            order_item.product.is_in_cart = True
         return result
 
     async def get_order_cart(self):

@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from pydantic.schema import datetime
 from pydantic.types import PositiveInt
 
-from apps.products.schemas import ProductPhoto
+from apps.products.schemas import ProductPhoto, ProductCustom
 
 
 class OrderStatus(str, Enum):
@@ -31,6 +31,15 @@ class OrderIn(BaseModel):
 
 class OrderItemOut(BaseModel):
     id: PositiveInt = Field()
+    product: ProductCustom = Field()
+    quantity: PositiveInt = Field()
+
+    class Config:
+        orm_mode = True
+
+
+class OrderItemShort(BaseModel):
+    id: PositiveInt = Field()
     product: ProductPhoto = Field()
     quantity: PositiveInt = Field()
 
@@ -51,7 +60,18 @@ class OrderOut(BaseModel):
 
 class OrderShort(BaseModel):
     id: PositiveInt = Field()
-    description: Optional[str] = Field()
+    payment_method: Optional[str] = Field()
+    status: str = Field()
+    date_created: Optional[datetime] = Field()
+    order_items: Optional[List[OrderItemShort]] = Field()
+
+    class Config:
+        orm_mode = True
+
+
+class OrderCustom(BaseModel):
+    id: PositiveInt = Field()
+    payment_method: Optional[str] = Field()
     status: str = Field()
     date_created: Optional[datetime] = Field()
     order_items: Optional[List[OrderItemOut]] = Field()

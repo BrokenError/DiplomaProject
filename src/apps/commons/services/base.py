@@ -83,13 +83,6 @@ class ServiceBase(InterfaceService, MixinPagination):
     ):
         return cls(manager=manager, id_user=id_user)
 
-    @staticmethod
-    def get_updated_photo_url(instance: Model) -> Model:
-        for photo in instance.photos:
-            if not photo.url.startswith('http'):
-                photo.url = settings_app.BASE_URL + photo.url
-        return instance
-
     async def check_product_in_cart(self, instance: Model) -> Model:
         is_in_cart = (await self.manager.execute(
             select(exists()
@@ -151,7 +144,7 @@ class ServiceBase(InterfaceService, MixinPagination):
     async def get(self, id_instance: int) -> Model:
         instance = await self.get_instance(id_instance)
         if not instance:
-            raise HTTPException(status_code=404, detail="Такого товара не существует")
+            raise HTTPException(status_code=404, detail="Такого объекта не существует")
         return instance
 
     async def list(
@@ -227,6 +220,9 @@ class ServiceBase(InterfaceService, MixinPagination):
             self.Model,
             dict_instance | {'id_author': self.id_user, 'id_editor_last': self.id_user}
         )
+
+    def get_by_ids(self, ids_instances: Iterable) -> Select:
+        return select(self.Model).where(self.Model.id.in_(set(ids_instances)))
 
     async def get_instances_by_ids(self, ids_instances: Iterable) -> List[Model]:
         return (await self.manager.execute(

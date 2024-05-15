@@ -1,6 +1,7 @@
 import logging
 import os
 import random
+import uuid
 from datetime import timedelta, datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -18,7 +19,7 @@ from resources.redis_services import redis
 from resources.smtp_services import smtp_client
 from settings import settings_app
 
-logger = logging.getLogger('users')
+logger = logging.getLogger("users")
 
 
 class UserService(ServiceBase):
@@ -49,7 +50,6 @@ class UserService(ServiceBase):
         instance = await self.get_instance(id_instance or self.id_user)
         if not instance:
             raise HTTPException(status_code=404, detail="Такого пользователя не существует")
-        instance.photo_url = settings_app.BASE_URL + instance.photo_url
         return instance
 
     async def update(
@@ -62,17 +62,20 @@ class UserService(ServiceBase):
     ) -> Model:
         if photo:
             try:
+                photo.filename = f"{uuid.uuid4()}_{photo.filename}"
                 file_path = f"{settings_app.PATH_STORAGE_USER._path}/{photo.filename}"
                 data.photo_url = photo
                 async with open(file_path, "wb") as buffer:
                     buffer.write(await photo.read())
             except Exception:
-                logger.error(f'Не удалось загрузить фото пользователя с id = {self.id_user}')
+                logger.error(f"Не удалось загрузить фото пользователя с id = {self.id_user}")
 
-        data = (await self.validate_data(None, data)).dict(exclude_unset=True) if data else dict()
+        data = (
+            await self.validate_data(None, data)
+        ).dict(exclude_unset=True, exclude_none=True) if data else dict()
 
         return await self.manager.update(
-            await self.get(id_instance),
+            await self.get_instance(self.id_user),
             data
         )
 
@@ -125,9 +128,9 @@ class UserService(ServiceBase):
         return code
 
     async def authenticate_user(self, user_auth: UserAuthenticate):
-        code = await redis.get(f'{user_auth.email}')
+        code = await redis.get(f"{user_auth.email}")
         if str(user_auth.code) != code:
-            raise HTTPException(status_code=401, detail='Неверный код')
+            raise HTTPException(status_code=401, detail="Неверный код")
         data = {"email": f"{user_auth.email}"}
         if not await self.check_exists(**data):
             id_user = (await self.create(data=data)).id
@@ -150,7 +153,7 @@ class UserService(ServiceBase):
 
     async def get_valid_token(self, data: TokenIn):
         if not data.token_refresh:
-            raise HTTPException(status_code=401, detail='Ваша сессия истекла. Пожалуйста, выполните вход снова.')
+            raise HTTPException(status_code=401, detail="Ваша сессия истекла. Пожалуйста, выполните вход снова.")
         try:
             decoded_data = jwt.decode(
                 data.token_refresh,
@@ -158,16 +161,16 @@ class UserService(ServiceBase):
                 algorithms=settings_app.ALGORITHM,
             )
         except jwt.ExpiredSignatureError:
-            raise HTTPException(status_code=401, detail='Ваша сессия истекла. Пожалуйста, выполните вход снова.')
+            raise HTTPException(status_code=401, detail="Ваша сессия истекла. Пожалуйста, выполните вход снова.")
         except jwt.JWTError:
-            raise HTTPException(status_code=400, detail='Неверный токен')
-        data = self.authorize(id_user=decoded_data['sub'])
+            raise HTTPException(status_code=400, detail="Неверный токен")
+        data = self.authorize(id_user=decoded_data["sub"])
         return data
 
     async def delete(self, id_instance: Optional[int] = None) -> Model:
         return await self.manager.update(
             await self.get(self.id_user),
             {
-                'is_deleted': True,
+                "is_deleted": True,
             }
         )
