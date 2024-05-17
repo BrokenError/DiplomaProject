@@ -49,7 +49,7 @@ def upgrade():
     sa.Column('description', sa.String(), nullable=True),
     sa.Column('status', sa.String(), nullable=False),
     sa.Column('is_deleted', sa.Boolean(), nullable=False),
-    sa.ForeignKeyConstraint(['id_user'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['id_user'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('products',
