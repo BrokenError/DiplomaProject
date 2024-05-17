@@ -59,7 +59,7 @@ async def search_list(
     return await product_service.search(query, pagination=pagination, favourite_service=favourite_service)
 
 
-@router.post(
+@router.get(
     "/suggestions",
     response_model=SuggestionOut,
     name='Get product suggestions',

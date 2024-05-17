@@ -17,6 +17,7 @@ class ReviewIn(BaseModel):
 
 
 class ReviewCustom(BaseModel):
+    id: PositiveInt = Field()
     user: Optional[str] = Field(default=None)
     photo_url: Optional[str] = Field()
     rating: PositiveInt = Field()

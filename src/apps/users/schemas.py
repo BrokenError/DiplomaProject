@@ -14,9 +14,6 @@ class UserIn(BaseModel):
     class Config:
         orm_mode = True
         allow_population_by_field_name = True
-        json_encoders = {
-            timedelta: timedelta_isoformat,
-        }
         smart_union = True
 
 
@@ -32,9 +29,6 @@ class UserOut(BaseModel):
     class Config:
         orm_mode = True
         allow_population_by_field_name = True
-        json_encoders = {
-            timedelta: timedelta_isoformat,
-        }
         smart_union = True
 
     @validator("photo_url", pre=True)

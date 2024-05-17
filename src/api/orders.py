@@ -6,6 +6,7 @@ from apps.commons.pagination.utils import get_pagination
 from apps.favourites.services import FavouriteService
 from apps.orders.schemas import OrderList, OrderOut, OrderIn, OrderCustom
 from apps.orders.services import OrderService
+from apps.reviews.services import ReviewService
 
 router = APIRouter(prefix='/orders', tags=['Orders'])
 
@@ -37,9 +38,14 @@ async def get_list(
 async def get(
         id_order: int,
         order_service: OrderService = Depends(OrderService.from_request_private),
-        favourite_service: FavouriteService = Depends(FavouriteService.from_request_private)
+        favourite_service: FavouriteService = Depends(FavouriteService.from_request_private),
+        review_service: ReviewService = Depends(ReviewService.from_request_private)
 ) -> OrderCustom:
-    return await order_service.get(id_instance=id_order, favourite_service=favourite_service)
+    return await order_service.get(
+        id_instance=id_order,
+        favourite_service=favourite_service,
+        review_service=review_service
+    )
 
 
 @router.post(

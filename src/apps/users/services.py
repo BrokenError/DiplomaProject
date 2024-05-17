@@ -131,8 +131,8 @@ class UserService(ServiceBase):
         code = await redis.get(f"{user_auth.email}")
         if str(user_auth.code) != code:
             raise HTTPException(status_code=401, detail="Неверный код")
-        data = {"email": f"{user_auth.email}"}
-        if not await self.check_exists(**data):
+        data = UserIn(email=f"{user_auth.email}")
+        if not await self.check_exists(email=data.email):
             id_user = (await self.create(data=data)).id
             order = await self.manager.create(
                 Order,
@@ -140,7 +140,7 @@ class UserService(ServiceBase):
             )
             await self.manager.session.refresh(order)
         else:
-            id_user = (await self.get_instance_by_data(**data)).id
+            id_user = (await self.get_instance_by_data(**data.dict())).id
         return self.authorize(id_user)
 
     @staticmethod
