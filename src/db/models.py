@@ -60,7 +60,7 @@ class OrderItem(Base):
 class Order(CustomBase):
     __tablename__ = 'orders'
 
-    id_user = Column(Integer, ForeignKey('users.id'), nullable=False)
+    id_user = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     status = Column(String, nullable=False, default='assembly')
     payment_method = Column(String, nullable=False)
     is_paid = Column(Boolean, nullable=False, default=False)

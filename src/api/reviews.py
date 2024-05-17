@@ -7,6 +7,20 @@ from apps.reviews.services import ReviewService
 router = APIRouter(prefix='/reviews', tags=['Reviews'])
 
 
+@router.get(
+    path='/{id_review}',
+    name='Get review product',
+    description='Get review product',
+    response_model=ReviewOut,
+    tags=['Reviews'],
+)
+async def get_review(
+        id_review: int,
+        review_service: ReviewService = Depends(ReviewService.from_request_private),
+) -> ReviewOut:
+    return await review_service.get(id_instance=id_review)
+
+
 @router.post(
     path='/{id_product}',
     name='Create review product',
