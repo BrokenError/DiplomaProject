@@ -1,3 +1,4 @@
+import locale
 import logging
 import math
 from decimal import ROUND_HALF_UP
@@ -39,7 +40,10 @@ class ProductService(ServiceBase):
         return product
 
     @staticmethod
-    def create_dynamic_price_ranges(min_price, max_price, num_ranges=6):
+    def format_price_with_spaces(number):
+        return "{:,.0f}".format(number).replace(",", " ")
+
+    def create_dynamic_price_ranges(self, min_price, max_price, num_ranges=6):
         log_min_price = math.log10(min_price)
         log_max_price = math.log10(max_price)
         log_step = (log_max_price - log_min_price) / num_ranges
@@ -48,11 +52,17 @@ class ProductService(ServiceBase):
         for i in range(num_ranges):
             start = math.floor(10 ** (log_min_price + i * log_step))
             end = math.floor(10 ** (log_min_price + (i + 1) * log_step))
-            ranges.append({"label": f"{start} - {end}", "min": start, "max": end})
+            ranges.append({
+                "label": "{} - {} ₽".format(
+                    self.format_price_with_spaces(start),
+                    self.format_price_with_spaces(end)
+                ),
+                "min": start, "max": end
+            })
 
-        ranges[0]["label"] = f"Менее {ranges[0]['max']}"
+        ranges[0]["label"] = f"Менее {self.format_price_with_spaces(ranges[0]['max'])} ₽"
         ranges[0]["min"] = None
-        ranges[-1]["label"] = f"{ranges[-1]['min']} и более"
+        ranges[-1]["label"] = f"{self.format_price_with_spaces(ranges[-1]['min'])} ₽ и более"
         ranges[-1]["max"] = None
 
         return ranges
@@ -106,8 +116,8 @@ class ProductService(ServiceBase):
         filter_options.update({
             f"{NameFilters['price']}": {
                 "id": "price",
-                "min": f"{min_price}",
-                "max": f"{max_price}",
+                "min": f"{self.format_price_with_spaces(min_price)} ₽",
+                "max": f"{self.format_price_with_spaces(max_price)} ₽",
                 "variants": price_ranges
             }
         })
