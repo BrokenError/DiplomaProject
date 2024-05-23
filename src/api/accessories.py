@@ -5,6 +5,8 @@ from apps.accessories.services import AccessoryService
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.pagination.utils import get_pagination
 from apps.favourites.services import FavouriteService
+from apps.products.queryparams import OrderingProduct, FilterAccessory
+from dependencies import QUERYFILTER
 
 router = APIRouter(prefix='/accessories', tags=['Accessories'])
 
@@ -19,10 +21,21 @@ router = APIRouter(prefix='/accessories', tags=['Accessories'])
 async def get_list(
         accessory_service: AccessoryService = Depends(AccessoryService.from_request_protected),
         favourite_service: FavouriteService = Depends(FavouriteService.from_request_protected),
+        model_ordering: OrderingProduct = Depends(),
+        model_filter: FilterAccessory = Depends(),
         pagination: Pagination = Depends(get_pagination),
 ) -> AccessoryList:
+    ordering = QUERYFILTER.get_ordering(
+        ordering=model_ordering)
+    filters = QUERYFILTER.get_filters(
+        model_db=accessory_service.Model,
+        dict_filters=model_filter.dict()
+    )
+
     return await accessory_service.list_product(
         pagination=pagination,
+        ordering=ordering,
+        filters=filters,
         favourite_service=favourite_service,
     )
 

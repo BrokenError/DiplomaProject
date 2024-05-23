@@ -72,7 +72,9 @@ class UserService(ServiceBase):
 
         data = (
             await self.validate_data(None, data)
-        ).dict(exclude_unset=True, exclude_none=True) if data else dict()
+        ).dict()
+
+        data.pop('photo_url') if not data['photo_url'] else data
 
         return await self.manager.update(
             await self.get_instance(self.id_user),

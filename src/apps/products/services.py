@@ -1,21 +1,25 @@
 import logging
+import math
 from decimal import ROUND_HALF_UP
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict, Any
 
 from fastapi import HTTPException
 from fuzzywuzzy import process
 from pydantic.types import Decimal
 from sqlalchemy import func, select
-from sqlalchemy.orm import selectinload, selectin_polymorphic
+from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import Select
 
 from apps.commons.managers.base import ManagerBase
 from apps.commons.pagination.schemas import Pagination
+from apps.commons.querystrings_v2.schemas import Direction
 from apps.commons.services.base import ServiceBase, ServiceAuthenticate
 from apps.favourites.services import FavouriteService
+from apps.products.queryparams import FilterProduct, FilterSmartphone, FilterSmartwatch, FilterTelevision, FilterLaptop, \
+    FilterTablet
 from apps.products.schemas import ProductIn, CategoryEnum
-from db.models import Product, Review, Tablet, Accessory, Television, Smartphone, Smartwatch, Laptop, User
-from settings import settings_app
+from db.models import Product, Review, Tablet, Television, Smartphone, Smartwatch, Laptop, User
+from field_names_ru import NameFilters
 
 logger = logging.getLogger('products')
 
@@ -26,6 +30,7 @@ class ProductService(ServiceBase):
 
     def __init__(self, manager: ManagerBase, id_user, *args, **kwargs) -> None:
         super().__init__(manager, id_user, *args, **kwargs)
+        self.Model_filter = None
         self._addons_base = [self.Model.is_deleted.is_(False)]
 
     async def create(self, *, data: ProductIn = None, data_extra: Optional[dict] = None) -> Model:
@@ -33,18 +38,105 @@ class ProductService(ServiceBase):
         await self.manager.session.refresh(product)
         return product
 
+    @staticmethod
+    def create_dynamic_price_ranges(min_price, max_price, num_ranges=6):
+        log_min_price = math.log10(min_price)
+        log_max_price = math.log10(max_price)
+        log_step = (log_max_price - log_min_price) / num_ranges
+
+        ranges = []
+        for i in range(num_ranges):
+            start = math.floor(10 ** (log_min_price + i * log_step))
+            end = math.floor(10 ** (log_min_price + (i + 1) * log_step))
+            ranges.append({"label": f"{start} - {end}", "min": start, "max": end})
+
+        ranges[0]["label"] = f"Менее {ranges[0]['max']}"
+        ranges[0]["min"] = None
+        ranges[-1]["label"] = f"{ranges[-1]['min']} и более"
+        ranges[-1]["max"] = None
+
+        return ranges
+
+    async def get_filters_form(self, model: Model) -> Dict[str, Any]:
+        model_data = {
+            "smartphone": (FilterSmartphone(), Smartphone),
+            "product": (FilterProduct(), Product),
+            "smartwatch": (FilterSmartwatch(), Smartwatch),
+            "television": (FilterTelevision(), Television),
+            "laptop": (FilterLaptop(), Laptop),
+            "tablet": (FilterTablet(), Tablet)
+        }
+
+        model = model.lower()
+
+        if model not in model_data:
+            raise HTTPException(status_code=400, detail="On this model does not exist filters")
+
+        filter_fields = model_data[model][0].dict()
+
+        min_max_prices = await self.manager.execute(
+            select(
+                func.min(Product.price).label("min_price"),
+                func.max(Product.price).label("max_price")
+            )
+        )
+        min_price, max_price = min_max_prices.fetchone()
+
+        if min_price is None or max_price is None:
+            return {}
+
+        price_ranges = self.create_dynamic_price_ranges(min_price, max_price)
+        filter_options = {}
+
+        for field in filter_fields:
+            field_key = field.split('__')[0]
+
+            self.Model_filter = model_data[model][1]
+            result = await self.manager.execute(
+                select(
+                    [func.json_agg(func.distinct(getattr(self.Model_filter, field_key))).label(f"{field_key}_options")]
+                ).where(getattr(self.Model_filter, field_key) != None)
+            )
+            variants = result.scalar_one_or_none() or []
+            filter_options[f"{NameFilters[field_key]}"] = {
+                "id": field_key,
+                "variants": variants
+            }
+
+        filter_options.update({
+            f"{NameFilters['price']}": {
+                "id": "price",
+                "min": f"{min_price}",
+                "max": f"{max_price}",
+                "variants": price_ranges
+            }
+        })
+
+        return filter_options
+
     async def search(
             self,
             query: str,
             pagination: Pagination = None,
-            favourite_service: FavouriteService = None
+            favourite_service: FavouriteService = None,
+            filters=None,
+            ordering=None,
     ):
         if not query:
             raise HTTPException(status_code=400, detail='Query is required')
 
-        products = (
-            await self.manager.execute(self.select_visible())
-        ).scalars().all()
+        query_products = self.select_visible()
+
+        if filters:
+            for filter in filters:
+                query_products = query_products.where(filter)
+
+        if ordering is None:
+            ordering = self.Model.id
+
+        query_products = await self.choose_sort(ordering, query_products)
+
+        products = query_products.scalars().all()
 
         product_data_for_search = {
             f"{CategoryEnum[product.type].value}{product.type}{product.model}{product.name}{product.material}{product.color_main}":
@@ -72,15 +164,15 @@ class ProductService(ServiceBase):
             raise HTTPException(status_code=400, detail='Query is required')
 
         products_data = (
-            await self.manager.execute(self.select_visible(self.Model.type, self.Model.name, self.Model.model))
+            await self.manager.execute(self.select_visible(self.Model.type, self.Model.name, self.Model.model).distinct())
         ).all()
 
-        products_data_list = []
+        products_data_list = set()
         for data in products_data:
-            products_data_list.extend(data)
-            products_data_list.append(CategoryEnum[data[0]].value)
+            products_data_list.update(data)
+            products_data_list.add(CategoryEnum[data[0]].value)
 
-        result_search_data = process.extract(query, products_data_list)
+        result_search_data = process.extract(query, list(products_data_list))
         suggestions = [data[0] for data in result_search_data if data[1] >= self.THRESHOLD]
         return dict(suggestions=suggestions)
 
@@ -107,20 +199,27 @@ class ProductService(ServiceBase):
         return instance
 
     async def get_memory_variations(self, instance: Model) -> Model:
-        instance.memory_variations = (await self.manager.execute(
-            self.select_visible(self.Model.memory)
-            .where(self.Model.model == instance.model).distinct())).scalars().all()
+        data = (await self.manager.execute(
+            self.select_visible(self.Model.id, self.Model.memory)
+            .where(self.Model.model == instance.model).distinct())).all()
+
+        memory_variations = {}
+        for data_product in data:
+            memory_variations.update({f"{data_product.memory}": data_product.id})
+        instance.memory_variations = memory_variations
         return instance
 
     async def get_color_variations(self, instance: Model) -> List:
         color_variations = (
             await self.manager.execute(
-                select(Product.color_main, Product.color_hex)
+                select(Product.color_main, Product.color_hex, Product.id)
                 .distinct()
                 .where(Product.type == instance.type)
             )
         ).all()
-        instance.color_variations = [{'color': color, 'hex': hex_value} for color, hex_value in color_variations]
+        instance.color_variations = [
+            {'color': color, 'hex': hex_value, 'id_product': id_prod} for color, hex_value, id_prod in color_variations
+        ]
         return instance
 
     async def get_reviews(self, instance: Model) -> Model:
@@ -194,11 +293,11 @@ class ProductService(ServiceBase):
         favourite_service: FavouriteService,
         *,
         filters: Optional[List] = None,
-        orderings: Optional[List] = None,
-        pagination: Pagination = None,
-        query: Optional[Select] = None,
+        ordering: Optional[Direction] = None,
+        pagination: Pagination = None
     ):
-        result = await self.list(filters=filters, orderings=orderings, pagination=pagination, query=query)
+        query = self.select_visible()
+        result = await self.list(filters=filters, ordering=ordering, pagination=pagination, query=query)
         if self.id_user:
             for product in result['items']:
                 await self.check_favourites(product, favourite_service)

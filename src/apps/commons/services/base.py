@@ -1,19 +1,21 @@
+from datetime import datetime, timedelta
 from typing import Optional, Iterable, List, Any, Generator
 
 from fastapi import Depends, HTTPException, Request
 from jose import jwt
 from jose.exceptions import JWTError
 from pydantic import BaseModel
-from sqlalchemy import exists, inspect, select, Column
+from sqlalchemy import exists, inspect, select, Column, func, desc, and_, asc, nullslast
 from sqlalchemy.sql import Executable, Select
 
 from apps.commons.basics.exceptions import ExceptionValidation
 from apps.commons.managers.base import ManagerBase
 from apps.commons.pagination.mixins import MixinPagination
 from apps.commons.pagination.schemas import Pagination
+from apps.commons.querystrings_v2.schemas import Direction
 from apps.commons.services.interface import InterfaceService
 from apps.orders.schemas import OrderStatus
-from db.models import Product, Order, OrderItem
+from db.models import Product, Order, OrderItem, Review
 from settings import settings_app
 
 
@@ -151,7 +153,7 @@ class ServiceBase(InterfaceService, MixinPagination):
         self,
         *,
         filters: Optional[List] = None,
-        orderings: Optional[List] = None,
+        ordering: Optional[Direction] = None,
         pagination: Pagination = None,
         query: Optional[Select] = None,
     ):
@@ -163,19 +165,69 @@ class ServiceBase(InterfaceService, MixinPagination):
             for filter in filters:
                 query = query.where(filter)
 
-        if orderings is None:
-            orderings = self.Model.id,
+        if ordering is None:
+            ordering = self.Model.id
 
-        for ordering in orderings:
-            query = query.order_by(ordering)
+        query = await self.choose_sort(ordering, query)
 
         if pagination is None:
             pagination = Pagination(size_page=-1, number_page=1)
 
         return await self.list_paginated(
             query=query,
-            pagination=pagination
+            pagination=pagination,
         )
+
+    @staticmethod
+    async def choose_sort(ordering: Direction, query: Select) -> Select:
+        match ordering:
+            case Direction.popular.value:
+                start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                end_of_month = start_of_month + timedelta(days=30)
+
+                order_ids_subquery = (
+                    select(Order.id)
+                    .where(and_(Order.date_created >= start_of_month, Order.date_created <= end_of_month))
+                    .alias("order_ids_subquery")
+                )
+
+                sales_count_subquery = (
+                    select(
+                        OrderItem.id_product,
+                        func.count().label('sales_count')
+                    )
+                    .where(OrderItem.id_order.in_(select(order_ids_subquery)))
+                    .group_by(OrderItem.id_product)
+                    .alias("sales_count_subquery")
+                )
+
+                query = (
+                    query.outerjoin(
+                        sales_count_subquery, Product.id == sales_count_subquery.c.id_product
+                    )
+                    .order_by(nullslast(desc(sales_count_subquery.c.sales_count)))
+                )
+            case Direction.price_desc:
+                query = query.order_by(desc(Product.price))
+            case Direction.price_asc:
+                query = query.order_by(asc(Product.price))
+            case Direction.discount_desc:
+                query = query.order_by(desc(Product.discount))
+            case Direction.rating_desc:
+                query = (
+                    select([
+                        Product,
+                        func.count(Review.id).label("reviews_count"),
+                        func.avg(Review.rating).label("average_rating")
+                    ])
+                    .select_from(Product)
+                    .join(Review, Review.id_product == Product.id)
+                    .group_by(Product.id)
+                    .order_by(desc(func.avg(Review.rating)))
+                )
+            case _:
+                query = query.order_by(ordering)
+        return query
 
     async def update(
         self,
