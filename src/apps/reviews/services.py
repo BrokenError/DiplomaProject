@@ -31,7 +31,7 @@ class ReviewService(ServiceBase):
         return review
 
     async def get_instance_by_id_product(self, id_product: int) -> Model:
-        instance = (await self.manager.execute(self.select_visible(id_product=id_product))).scalars().first()
+        instance = (await self.manager.execute(self.select_visible(id_product=id_product, id_user=self.id_user))).scalars().first()
         if instance:
             return instance.id
 
