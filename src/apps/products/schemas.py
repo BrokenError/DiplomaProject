@@ -176,7 +176,7 @@ class TechnicOut(ProductOut):
     memory_ram: int = Field()
     memory: int = Field()
     reviews: List[ReviewCustom] = Field(default_factory=list)
-    memory_variations: List[PositiveInt] = Field(default_factory=list)
+    memory_variations: dict = Field(default_factory=dict)
 
 
 class TechnicList(ProductList):

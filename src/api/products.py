@@ -3,8 +3,10 @@ from fastapi import APIRouter, Depends, Query
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.pagination.utils import get_pagination
 from apps.favourites.services import FavouriteService
+from apps.products.queryparams import OrderingProduct, FilterProduct
 from apps.products.schemas import ProductList, ProductType, SuggestionOut
 from apps.products.services import ProductService
+from dependencies import QUERYFILTER
 from settings import settings_app
 
 router = APIRouter(prefix='/products', tags=['Products'])
@@ -19,7 +21,7 @@ router = APIRouter(prefix='/products', tags=['Products'])
 )
 async def get_type_product(
         id_product: int,
-        product_service: ProductService = Depends(ProductService.from_request_protected)
+        product_service: ProductService = Depends(ProductService.from_request_protected),
 ) -> ProductType:
     return await product_service.get_type_product(id_instance=id_product)
 
@@ -34,11 +36,20 @@ async def get_type_product(
 async def get_list(
         product_service: ProductService = Depends(ProductService.from_request_protected),
         favourite_service: FavouriteService = Depends(FavouriteService.from_request_protected),
+        model_filter: FilterProduct = Depends(),
+        model_ordering: OrderingProduct = Depends(),
         pagination: Pagination = Depends(get_pagination),
 ) -> ProductList:
+    ordering = QUERYFILTER.get_ordering(
+        ordering=model_ordering)
+    filters = QUERYFILTER.get_filters(
+        model_db=product_service.Model,
+        dict_filters=model_filter.dict()
+    )
     return await product_service.list_product(
         favourite_service=favourite_service,
-        filters=None,
+        ordering=ordering,
+        filters=filters,
         pagination=pagination,
     )
 
@@ -54,9 +65,24 @@ async def search_list(
         query: str = Query(None, min_length=2),
         product_service: ProductService = Depends(ProductService.from_request_protected),
         favourite_service: FavouriteService = Depends(FavouriteService.from_request_protected),
+        model_filter: FilterProduct = Depends(),
+        model_ordering: OrderingProduct = Depends(),
         pagination: Pagination = Depends(get_pagination),
 ) -> ProductList:
-    return await product_service.search(query, pagination=pagination, favourite_service=favourite_service)
+    ordering = QUERYFILTER.get_ordering(
+        ordering=model_ordering)
+    filters = QUERYFILTER.get_filters(
+        model_db=product_service.Model,
+        dict_filters=model_filter.dict()
+    )
+
+    return await product_service.search(
+        query,
+        pagination=pagination,
+        filters=filters,
+        ordering=ordering,
+        favourite_service=favourite_service
+    )
 
 
 @router.get(
@@ -71,3 +97,17 @@ async def get_suggestions(
         product_service: ProductService = Depends(ProductService.from_request_protected),
 ) -> SuggestionOut:
     return await product_service.get_suggestions(query)
+
+
+@router.get(
+    path='/filters',
+    # response_model=FilterProduct,
+    name='Search products',
+    description='Search products',
+    tags=['Products']
+)
+async def get_filters_form(
+        model: str = Query(None, min_length=2),
+        product_service: ProductService = Depends(ProductService.from_request_protected)
+):
+    return await product_service.get_filters_form(model)

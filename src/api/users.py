@@ -64,7 +64,7 @@ async def get_valid_token(
     return await user_service.get_valid_token(data=data)
 
 
-@router.patch(
+@router.put(
     path='',
     response_model=UserOut,
     name='Update user',
