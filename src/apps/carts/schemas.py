@@ -1,9 +1,10 @@
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field
 from pydantic.types import PositiveInt
 
-from apps.products.schemas import ProductCustom
+from apps.products.schemas import ProductCart
 
 
 class CartIn(BaseModel):
@@ -30,7 +31,7 @@ class CartOut(BaseModel):
 
 class CartShort(BaseModel):
     id: PositiveInt = Field()
-    product: ProductCustom = Field()
+    product: ProductCart = Field()
     quantity: Optional[int] = Field(gte=0)
 
     class Config:
@@ -39,6 +40,15 @@ class CartShort(BaseModel):
 
 class CartList(BaseModel):
     items: list[CartShort]
+
+    class Config:
+        orm_mode = True
+
+
+class CartPayment(BaseModel):
+    cart_number: Optional[PositiveInt] = Field()
+    cart_date_expires: Optional[datetime] = Field()
+    cart_pin: Optional[PositiveInt] = Field()
 
     class Config:
         orm_mode = True

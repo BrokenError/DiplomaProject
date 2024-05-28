@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from apps.carts.schemas import CartIn, CartList, CartOut, CartUpdate
+from apps.carts.schemas import CartIn, CartList, CartOut, CartUpdate, CartPayment
 from apps.carts.services import CartService
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.pagination.utils import get_pagination
@@ -69,3 +69,27 @@ async def delete(
 ):
     return await cart_service.delete_from_cart(id_instance=id_product)
 
+
+@router.delete(
+    path='',
+    name='delete all products from cart',
+    description='delete all products from cart',
+    tags=['Cart'],
+)
+async def delete(
+        cart_service: CartService = Depends(CartService.from_request_private),
+):
+    return await cart_service.delete()
+
+
+@router.post(
+    path='/payment',
+    name='payment',
+    description='payment',
+    tags=['Cart']
+)
+async def create(
+        data: CartPayment,
+        cart_service: CartService = Depends(CartService.from_request_private),
+):
+    return await cart_service.payment(data=data)

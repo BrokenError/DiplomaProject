@@ -70,6 +70,10 @@ class ProductCustom(ProductBase):
         orm_mode = True
 
 
+class ProductCart(ProductCustom):
+    quantity: int = Field(gte=0)
+
+
 class ProductWithIdReview(ProductCustom):
     id_review: Optional[PositiveInt] = Field(default=None)
 
