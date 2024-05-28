@@ -97,3 +97,15 @@ async def delete(
         user_service: UserService = Depends(UserService.from_request_private)
 ) -> UserOut:
     return await user_service.delete(id_instance=None)
+
+
+@router.delete(
+    path='/photo',
+    name='Delete photo user',
+    description='Delete photo user',
+    tags=['Users']
+)
+async def delete(
+        user_service: UserService = Depends(UserService.from_request_private)
+):
+    return await user_service.delete_photo()

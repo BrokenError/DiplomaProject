@@ -1,7 +1,7 @@
 import datetime
 
 from fastapi_storages.integrations.sqlalchemy import FileType
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Numeric, Table
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Numeric, Table, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -44,9 +44,9 @@ class OrderItem(Base):
     __tablename__ = 'order_items'
 
     id = Column(Integer, primary_key=True)
-    id_order = Column(Integer, ForeignKey('orders.id'), nullable=False)
-    id_user = Column(Integer, ForeignKey('users.id'), nullable=False)
-    id_product = Column(Integer, ForeignKey('products.id'), nullable=False)
+    id_order = Column(Integer, ForeignKey('orders.id', ondelete='CASCADE'), nullable=False)
+    id_user = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=False)
+    id_product = Column(Integer, ForeignKey('products.id', ondelete='CASCADE'), nullable=False)
     quantity = Column(Integer, nullable=False, default=1)
 
     order = relationship('Order')
@@ -60,7 +60,7 @@ class OrderItem(Base):
 class Order(CustomBase):
     __tablename__ = 'orders'
 
-    id_user = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    id_user = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=False)
     status = Column(String, nullable=False, default='assembly')
     payment_method = Column(String, nullable=False)
     is_paid = Column(Boolean, nullable=False, default=False)
@@ -159,7 +159,7 @@ class Technics(Product):
         nullable=False,
         default=datetime.datetime.now()
     )
-    screen_diagonal = Column(String, nullable=False)
+    screen_diagonal = Column(Float, nullable=False)
     screen_resolution = Column(String, nullable=False)
     screen_format = Column(String, nullable=False)
     color_other = Column(String, nullable=True)
@@ -168,7 +168,7 @@ class Technics(Product):
 class Television(Technics):
     __tablename__ = 'televisions'
 
-    id_product = Column(Integer, ForeignKey('products.id'), primary_key=True)
+    id_product = Column(Integer, ForeignKey('products.id', ondelete='CASCADE'), primary_key=True)
     consumption = Column(Integer, nullable=False)
     hdr_support = Column(Boolean, nullable=True)
     angle_view = Column(String, nullable=True)
@@ -197,13 +197,13 @@ class Television(Technics):
 class Smartphone(Technics, Camera):
     __tablename__ = 'smartphones'
 
-    id_product = Column(Integer, ForeignKey('products.id'), primary_key=True)
+    id_product = Column(Integer, ForeignKey('products.id', ondelete='CASCADE'), primary_key=True)
     support_lte = Column(Boolean, nullable=False, default=True)
     sim_card_format = Column(String, nullable=True)
     pixel_density = Column(Integer, nullable=False)
     degree_protection = Column(String, nullable=False)
     processor_model = Column(String, nullable=False)
-    processor_frequency = Column(Integer, nullable=True)
+    processor_frequency = Column(Float, nullable=True)
     number_cores = Column(Integer, nullable=False)
     accumulator_type = Column(String, nullable=True)
     accumulator_capacity = Column(Integer, nullable=False)
@@ -223,7 +223,7 @@ class Smartphone(Technics, Camera):
 class Laptop(Technics):
     __tablename__ = 'laptops'
 
-    id_product = Column(Integer, ForeignKey('products.id'), primary_key=True)
+    id_product = Column(Integer, ForeignKey('products.id', ondelete='CASCADE'), primary_key=True)
     consumption = Column(Integer, nullable=False)
     keyboard_layout = Column(String, nullable=False)
     keyboard_backlight = Column(String, nullable=False)
@@ -234,7 +234,7 @@ class Laptop(Technics):
     video_card_model = Column(String, nullable=False)
     discrete_graphics = Column(String, nullable=True)
     processor_model = Column(String, nullable=False)
-    processor_frequency = Column(Integer, nullable=False)
+    processor_frequency = Column(Float, nullable=False)
     number_cores = Column(Integer, nullable=False)
     number_threads = Column(Integer, nullable=False)
     video_chip = Column(String, nullable=False)
@@ -261,7 +261,7 @@ class Laptop(Technics):
 class Smartwatch(Technics):
     __tablename__ = 'smartwatches'
 
-    id_product = Column(Integer, ForeignKey('products.id'), primary_key=True)
+    id_product = Column(Integer, ForeignKey('products.id', ondelete='CASCADE'), primary_key=True)
     material_belt = Column(String, nullable=False)
     pixel_density = Column(Integer, nullable=False)
     degree_protection = Column(String, nullable=False)
@@ -282,7 +282,7 @@ class Smartwatch(Technics):
 class Accessory(Product):
     __tablename__ = 'accessories'
 
-    id_product = Column(Integer, ForeignKey('products.id'), primary_key=True)
+    id_product = Column(Integer, ForeignKey('products.id', ondelete='CASCADE'), primary_key=True)
     features = Column(String, nullable=True, default="нет")
 
     __mapper_args__ = {
@@ -296,11 +296,11 @@ class Accessory(Product):
 class Tablet(Technics, Camera):
     __tablename__ = 'tablets'
 
-    id_product = Column(Integer, ForeignKey('products.id'), primary_key=True)
+    id_product = Column(Integer, ForeignKey('products.id', ondelete='CASCADE'), primary_key=True)
     pixel_density = Column(Integer, nullable=False)
     degree_protection = Column(String, nullable=False)
     processor_model = Column(String, nullable=False)
-    processor_frequency = Column(Integer, nullable=False)
+    processor_frequency = Column(Float, nullable=False)
     number_cores = Column(Integer, nullable=False)
     support_lte = Column(Boolean, nullable=False, default=True)
     sim_card_format = Column(String, nullable=True)
@@ -321,8 +321,8 @@ class Tablet(Technics, Camera):
 class Review(CustomBase):
     __tablename__ = 'reviews'
 
-    id_user = Column(Integer, ForeignKey('users.id'), nullable=False)
-    id_product = Column(Integer, ForeignKey('products.id'), nullable=False)
+    id_user = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    id_product = Column(Integer, ForeignKey('products.id', ondelete='CASCADE'), nullable=False)
     date_created = Column(DateTime, nullable=False, default=datetime.datetime.now())
     rating = Column(Integer, nullable=False)
     text = Column(String, nullable=True)
@@ -337,8 +337,8 @@ class Review(CustomBase):
 class Favourite(Base):
     __tablename__ = 'favourites'
 
-    id_user = Column(Integer, ForeignKey('users.id'), primary_key=True)
-    id_product = Column(Integer, ForeignKey('products.id'), primary_key=True)
+    id_user = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    id_product = Column(Integer, ForeignKey('products.id', ondelete='CASCADE'), primary_key=True)
     is_deleted = Column(Boolean, nullable=False, default=False)
 
     user = relationship("User")
