@@ -88,16 +88,9 @@ if __name__ == '__main__':
         port=settings_app.SERVER_PORT,
         debug=True,
         reload=True,
-        lifespan="on"
+        lifespan="on",
+        forwarded_allow_ips='*',
+        proxy_headers=True,
+        ssl_keyfile='/techzone/letsencrypt/live/wis-techzone.ru/privkey.pem',
+        ssl_certfile='/techzone/letsencrypt/live/wis-techzone.ru/fullchain.pem'
     )
-    # process_app = mp.Process(
-    #     target=uvicorn.run,
-    #     args=('main:app',),
-    #     kwargs={
-    #         "host": settings_app.SERVER_HOST,
-    #         "port": settings_app.SERVER_PORT,
-    #         "debug": True,
-    #         "reload": True,
-    #     }
-    # )
-    # process_app.start()

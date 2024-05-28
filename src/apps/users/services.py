@@ -7,7 +7,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Optional, Union
 
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException, UploadFile, Response
 from jose import jwt
 
 from apps.commons.basics.exceptions import ExceptionValidation
@@ -176,3 +176,6 @@ class UserService(ServiceBase):
                 "is_deleted": True,
             }
         )
+
+    async def delete_photo(self) -> Response:
+        return await self.manager.update(await self.get(id_instance=self.id_user), data_update={"photo_url": None})

@@ -53,3 +53,10 @@ class ManagerBase:
         await self.session.commit()
 
         return Response(status_code=200)
+
+    async def delete_all(self, instances: Iterable[ModelType]) -> Response:
+        for instance in instances:
+            await self.session.delete(instance)
+        await self.session.commit()
+
+        return Response(status_code=200)

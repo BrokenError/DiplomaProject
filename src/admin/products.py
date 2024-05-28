@@ -56,7 +56,7 @@ class BaseTechnic(ModelView):
 def custom_photo_format(photo):
     if not photo:
         return ''
-    formatted_photos = f'<img src="{settings_app.BASE_URL}{photo.url}" height=30px width=30px>'
+    formatted_photos = f'<img src="{settings_app.BASE_URL}{photo.url}" height=30px style="max-width: none">'
     return Markup(formatted_photos)
 
 
@@ -91,7 +91,7 @@ class PhotosAdmin(ModelView, model=Photo):
     column_default_sort = [(Product.id, True)]
     column_formatters = {
         "url": lambda m, a: Markup(
-            f'<img src="{settings_app.BASE_URL}{m.url}" height=40px, width=40px, alt="Фотография">'
+            f'<img src="{settings_app.BASE_URL}{m.url}" height=40px alt="Фотография">'
         ) if m.url else ''
     }
     column_formatters_detail = {

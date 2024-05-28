@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException, Request
 from jose import jwt
 from jose.exceptions import JWTError
 from pydantic import BaseModel
-from sqlalchemy import exists, inspect, select, Column, func, desc, and_, asc, nullslast
+from sqlalchemy import exists, inspect, select, Column, func, desc, and_, asc, nullslast, case, cast, Float
 from sqlalchemy.sql import Executable, Select
 
 from apps.commons.basics.exceptions import ExceptionValidation
@@ -166,9 +166,9 @@ class ServiceBase(InterfaceService, MixinPagination):
                 query = query.where(filter)
 
         if ordering is None:
-            ordering = self.Model.id
+            ordering = desc(self.Model.id)
 
-        query = await self.choose_sort(ordering, query)
+        query = self.choose_sort(ordering, query)
 
         if pagination is None:
             pagination = Pagination(size_page=-1, number_page=1)
@@ -178,8 +178,7 @@ class ServiceBase(InterfaceService, MixinPagination):
             pagination=pagination,
         )
 
-    @staticmethod
-    async def choose_sort(ordering: Direction, query: Select) -> Select:
+    def choose_sort(self, ordering: Direction, query: Select) -> Select:
         match ordering:
             case Direction.popular.value:
                 start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -207,24 +206,31 @@ class ServiceBase(InterfaceService, MixinPagination):
                     )
                     .order_by(nullslast(desc(sales_count_subquery.c.sales_count)))
                 )
-            case Direction.price_desc:
-                query = query.order_by(desc(Product.price))
-            case Direction.price_asc:
-                query = query.order_by(asc(Product.price))
+            case Direction.price_desc | Direction.price_asc:
+                final_price = case(
+                    [
+                        (Product.discount > 0, Product.price * (1 - cast(Product.discount, Float) / 100))
+                    ],
+                    else_=Product.price
+                ).label('final_price')
+
+                query = query.add_columns(final_price)
+
+                if ordering == Direction.price_desc:
+                    query = query.order_by(desc('final_price'))
+                else:
+                    query = query.order_by(asc('final_price'))
             case Direction.discount_desc:
                 query = query.order_by(desc(Product.discount))
             case Direction.rating_desc:
-                query = (
-                    select([
-                        Product,
-                        func.count(Review.id).label("reviews_count"),
-                        func.avg(Review.rating).label("average_rating")
-                    ])
-                    .select_from(Product)
-                    .join(Review, Review.id_product == Product.id)
-                    .group_by(Product.id)
-                    .order_by(desc(func.avg(Review.rating)))
-                )
+                query = query.add_columns(
+                    func.count(Review.id).label("reviews_count"),
+                    func.avg(Review.rating).label("average_rating")
+                ).outerjoin(
+                    Review, Review.id_product == Product.id
+                ).group_by(
+                    Product.id, *self.Model.__table__.columns
+                ).order_by(nullslast(desc('average_rating')))
             case _:
                 query = query.order_by(ordering)
         return query

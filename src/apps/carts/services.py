@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.sql import Select
 
-from apps.carts.schemas import CartIn, CartUpdate
+from apps.carts.schemas import CartIn, CartUpdate, CartPayment
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.services import ServiceBase
 from apps.favourites.services import FavouriteService
@@ -15,6 +15,10 @@ from db.models import OrderItem, Order, Product
 
 class CartService(ServiceBase):
     Model = OrderItem
+
+    async def payment(self, data: Optional[CartPayment]):
+        # integrations with service payment
+        pass
 
     async def add(
             self, *,
@@ -129,6 +133,12 @@ class CartService(ServiceBase):
         if not instance:
             raise HTTPException(status_code=404, detail="Product not found in cart")
         return await self.manager.delete(instance)
+
+    async def delete(self, id_instance: int = None):
+        user_cart = await self.get_order_cart()
+        instances = (await self.manager.execute(self.select_visible(id_user=self.id_user, id_order=user_cart.id))).scalars().all()
+        return await self.manager.delete_all(instances)
+
 
 
 

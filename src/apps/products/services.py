@@ -1,4 +1,3 @@
-import locale
 import logging
 import math
 from decimal import ROUND_HALF_UP
@@ -7,7 +6,7 @@ from typing import Optional, List, Tuple, Dict, Any
 from fastapi import HTTPException
 from fuzzywuzzy import process
 from pydantic.types import Decimal
-from sqlalchemy import func, select
+from sqlalchemy import func, select, extract
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import Select
 
@@ -28,6 +27,7 @@ logger = logging.getLogger('products')
 class ProductService(ServiceBase):
     Model = Product
     THRESHOLD = 50
+    FILTER_KEY_DELETED = ('price__lte', 'price__gte')
 
     def __init__(self, manager: ManagerBase, id_user, *args, **kwargs) -> None:
         super().__init__(manager, id_user, *args, **kwargs)
@@ -43,6 +43,14 @@ class ProductService(ServiceBase):
     def format_price_with_spaces(number):
         return "{:,.0f}".format(number).replace(",", " ")
 
+    @staticmethod
+    def round_price(price):
+        if price < 100:
+            return price
+
+        magnitude = 10 ** (len(str(price)) - 1)
+        return (price // magnitude) * magnitude + magnitude
+
     def create_dynamic_price_ranges(self, min_price, max_price, num_ranges=6):
         log_min_price = math.log10(min_price)
         log_max_price = math.log10(max_price)
@@ -52,12 +60,12 @@ class ProductService(ServiceBase):
         for i in range(num_ranges):
             start = math.floor(10 ** (log_min_price + i * log_step))
             end = math.floor(10 ** (log_min_price + (i + 1) * log_step))
+            start, end = self.round_price(start), self.round_price(end) - 1
             ranges.append({
-                "label": "{} - {} ₽".format(
-                    self.format_price_with_spaces(start),
-                    self.format_price_with_spaces(end)
-                ),
-                "min": start, "max": end
+                "label": "{} - {} ₽".format(self.format_price_with_spaces(start),
+                                            self.format_price_with_spaces(end)),
+                "min": start,
+                "max": end
             })
 
         ranges[0]["label"] = f"Менее {self.format_price_with_spaces(ranges[0]['max'])} ₽"
@@ -77,17 +85,16 @@ class ProductService(ServiceBase):
             "tablet": (FilterTablet(), Tablet)
         }
 
-        model = model.lower()
-
-        if model not in model_data:
+        if not model or model.lower() not in model_data:
             raise HTTPException(status_code=400, detail="On this model does not exist filters")
 
-        filter_fields = model_data[model][0].dict()
+        model = model.lower()
+        self.Model_filter = model_data[model][1]
 
         min_max_prices = await self.manager.execute(
             select(
-                func.min(Product.price).label("min_price"),
-                func.max(Product.price).label("max_price")
+                func.min(self.Model_filter.price).label("min_price"),
+                func.max(self.Model_filter.price).label("max_price")
             )
         )
         min_price, max_price = min_max_prices.fetchone()
@@ -96,28 +103,41 @@ class ProductService(ServiceBase):
             return {}
 
         price_ranges = self.create_dynamic_price_ranges(min_price, max_price)
-        filter_options = {}
+
+        filter_fields = model_data[model][0].dict()
+        filters = []
+
+        for key in self.FILTER_KEY_DELETED:
+            filter_fields.pop(key, None)
 
         for field in filter_fields:
             field_key = field.split('__')[0]
 
-            self.Model_filter = model_data[model][1]
-            result = await self.manager.execute(
-                select(
-                    [func.json_agg(func.distinct(getattr(self.Model_filter, field_key))).label(f"{field_key}_options")]
-                ).where(getattr(self.Model_filter, field_key) != None)
-            )
-            variants = result.scalar_one_or_none() or []
-            filter_options[f"{NameFilters[field_key]}"] = {
-                "id": field_key,
-                "variants": variants
-            }
+            query = select(
+                func.json_agg(func.distinct(getattr(self.Model_filter, field_key))).label(f"{field_key}_options"))
 
+            if field_key == 'date_release':
+                query = select(
+                    func.json_agg(func.distinct(extract('year', getattr(self.Model_filter, field_key)))).label(
+                        f"{field_key}_options"))
+
+            result = await self.manager.execute(query.where(getattr(self.Model_filter, field_key) is not None))
+            variants = result.scalar_one_or_none() or []
+            filters.append({
+                "id": field_key,
+                "label": NameFilters[field_key],
+                "variants": variants
+            })
+
+        filter_options = {"product_filters": filters}
         filter_options.update({
-            f"{NameFilters['price']}": {
+            f"price": {
                 "id": "price",
-                "min": f"{self.format_price_with_spaces(min_price)} ₽",
-                "max": f"{self.format_price_with_spaces(max_price)} ₽",
+                "label": NameFilters['price'],
+                "min": int(min_price),
+                "max": int(max_price),
+                "label_min": f"{self.format_price_with_spaces(min_price)} ₽",
+                "label_max": f"{self.format_price_with_spaces(max_price)} ₽",
                 "variants": price_ranges
             }
         })
@@ -146,7 +166,7 @@ class ProductService(ServiceBase):
 
         query_products = await self.choose_sort(ordering, query_products)
 
-        products = query_products.scalars().all()
+        products = (await self.manager.execute(query_products)).scalars().all()
 
         product_data_for_search = {
             f"{CategoryEnum[product.type].value}{product.type}{product.model}{product.name}{product.material}{product.color_main}":
