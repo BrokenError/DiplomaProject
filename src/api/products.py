@@ -62,7 +62,7 @@ async def get_list(
     tags=['Products']
 )
 async def search_list(
-        query: str = Query(None, min_length=2),
+        query: str = Query(None, min_length=1),
         product_service: ProductService = Depends(ProductService.from_request_protected),
         favourite_service: FavouriteService = Depends(FavouriteService.from_request_protected),
         model_filter: FilterProduct = Depends(),
@@ -93,7 +93,7 @@ async def search_list(
     tags=['Products']
 )
 async def get_suggestions(
-        query: str = Query(None, min_length=2),
+        query: str = Query(None, min_length=1),
         product_service: ProductService = Depends(ProductService.from_request_protected),
 ) -> SuggestionOut:
     return await product_service.get_suggestions(query)
@@ -107,7 +107,7 @@ async def get_suggestions(
     tags=['Products']
 )
 async def get_filters_form(
-        model: str = Query(None, min_length=2),
+        model: str = Query(None, min_length=1),
         product_service: ProductService = Depends(ProductService.from_request_protected)
 ):
     return await product_service.get_filters_form(model)

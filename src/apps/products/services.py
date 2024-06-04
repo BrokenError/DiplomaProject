@@ -10,16 +10,22 @@ from sqlalchemy import func, select, extract
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import Select
 
+from apps.accessories.queryparams import FilterAccessory
 from apps.commons.managers.base import ManagerBase
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.querystrings_v2.schemas import Direction
 from apps.commons.services.base import ServiceBase, ServiceAuthenticate
 from apps.favourites.services import FavouriteService
-from apps.products.queryparams import FilterProduct, FilterSmartphone, FilterSmartwatch, FilterTelevision, FilterLaptop, \
-    FilterTablet
-from apps.products.schemas import ProductIn, CategoryEnum
-from db.models import Product, Review, Tablet, Television, Smartphone, Smartwatch, Laptop, User
+from apps.laptops.queryparams import FilterLaptop
+from apps.products.queryparams import FilterProduct
+from apps.products.schemas import ProductAdminSchema, CategoryEnum
+from apps.smartphones.queryparams import FilterSmartphone
+from apps.smartwatches.queryparams import FilterSmartwatch
+from apps.tablets.queryparams import FilterTablet
+from apps.televisions.queryparams import FilterTelevision
+from db.models import Product, Review, Tablet, Television, Smartphone, Smartwatch, Laptop, User, Accessory
 from field_names_ru import NameFilters
+from settings import settings_app
 
 logger = logging.getLogger('products')
 
@@ -34,7 +40,7 @@ class ProductService(ServiceBase):
         self.Model_filter = None
         self._addons_base = [self.Model.is_deleted.is_(False)]
 
-    async def create(self, *, data: ProductIn = None, data_extra: Optional[dict] = None) -> Model:
+    async def create(self, *, data: ProductAdminSchema = None, data_extra: Optional[dict] = None) -> Model:
         product = await super().create(data=data, data_extra=data_extra)
         await self.manager.session.refresh(product)
         return product
@@ -44,12 +50,25 @@ class ProductService(ServiceBase):
         return "{:,.0f}".format(number).replace(",", " ")
 
     @staticmethod
-    def round_price(price):
+    def best_price(price) -> int:
         if price < 100:
-            return price
+            return round(price, -1) if price >= 10 else round(price)
 
-        magnitude = 10 ** (len(str(price)) - 1)
-        return (price // magnitude) * magnitude + magnitude
+        magnitude = 10 ** (len(str(int(price))) - 2)
+
+        base_price = (price // magnitude) * magnitude
+
+        min_diff = float('inf')
+        best_price = base_price
+
+        for ending in settings_app.PSYCHOLOGICAL_ENDINGS:
+            candidate_price = base_price + ending
+            diff = abs(candidate_price - price)
+
+            if diff < min_diff:
+                min_diff = diff
+                best_price = candidate_price
+        return best_price
 
     def create_dynamic_price_ranges(self, min_price, max_price, num_ranges=6):
         log_min_price = math.log10(min_price)
@@ -60,7 +79,7 @@ class ProductService(ServiceBase):
         for i in range(num_ranges):
             start = math.floor(10 ** (log_min_price + i * log_step))
             end = math.floor(10 ** (log_min_price + (i + 1) * log_step))
-            start, end = self.round_price(start), self.round_price(end) - 1
+            start, end = self.best_price(start) + 1, self.best_price(end)
             ranges.append({
                 "label": "{} - {} ₽".format(self.format_price_with_spaces(start),
                                             self.format_price_with_spaces(end)),
@@ -82,7 +101,8 @@ class ProductService(ServiceBase):
             "smartwatch": (FilterSmartwatch(), Smartwatch),
             "television": (FilterTelevision(), Television),
             "laptop": (FilterLaptop(), Laptop),
-            "tablet": (FilterTablet(), Tablet)
+            "tablet": (FilterTablet(), Tablet),
+            "accessory": (FilterAccessory(), Accessory)
         }
 
         if not model or model.lower() not in model_data:
@@ -164,12 +184,12 @@ class ProductService(ServiceBase):
         if ordering is None:
             ordering = self.Model.id
 
-        query_products = await self.choose_sort(ordering, query_products)
+        query_products = self.choose_sort(ordering, query_products)
 
         products = (await self.manager.execute(query_products)).scalars().all()
 
         product_data_for_search = {
-            f"{CategoryEnum[product.type].value}{product.type}{product.model}{product.name}{product.material}{product.color_main}":
+            f"{CategoryEnum[product.type].value}{product.type}{product.brand}{product.model}{product.name}{product.material}{product.color_main}":
                 product.id for product in products
         }
 
@@ -194,7 +214,11 @@ class ProductService(ServiceBase):
             raise HTTPException(status_code=400, detail='Query is required')
 
         products_data = (
-            await self.manager.execute(self.select_visible(self.Model.type, self.Model.name, self.Model.model).distinct())
+            await self.manager.execute(self.select_visible(
+                self.Model.type,
+                self.Model.name,
+                self.Model.model,
+                self.Model.brand).distinct())
         ).all()
 
         products_data_list = set()

@@ -90,7 +90,7 @@ class ServiceBase(InterfaceService, MixinPagination):
             select(exists()
                    .where(Order.id_user == self.id_user)
                    .where(Order.id == OrderItem.id_order)
-                   .where(Order.status == OrderStatus.CART)
+                   .where(Order.status == OrderStatus.cart)
                    .where(OrderItem.id_user == self.id_user)
                    .where(OrderItem.id_product == instance.id))
         )).scalar()

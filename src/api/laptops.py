@@ -3,9 +3,10 @@ from fastapi import Depends, APIRouter
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.pagination.utils import get_pagination
 from apps.favourites.services import FavouriteService
+from apps.laptops.queryparams import FilterLaptop
 from apps.laptops.schemas import LaptopList, LaptopOut
 from apps.laptops.services import LaptopService
-from apps.products.queryparams import OrderingProduct, FilterLaptop
+from apps.products.queryparams import OrderingProduct
 from dependencies import QUERYFILTER
 
 router = APIRouter(prefix='/laptops', tags=['Laptops'])

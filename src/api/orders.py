@@ -4,10 +4,11 @@ from apps.carts.services import CartService
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.pagination.utils import get_pagination
 from apps.favourites.services import FavouriteService
-from apps.orders.schemas import OrderList, OrderOut, OrderIn, OrderCustom
+from apps.orders.schemas import OrderList, OrderIn, OrderCustom, OrderPaymentOut
 from apps.orders.services import OrderService
 from apps.products.services import ProductService
 from apps.reviews.services import ReviewService
+from apps.users.services import UserService
 
 router = APIRouter(prefix='/orders', tags=['Orders'])
 
@@ -55,7 +56,7 @@ async def get(
     path='',
     name='Create order',
     description='Create order',
-    response_model=OrderOut,
+    response_model=OrderPaymentOut,
     tags=['Orders'],
 )
 async def create(
@@ -63,5 +64,11 @@ async def create(
         order_service: OrderService = Depends(OrderService.from_request_private),
         order_item_service: CartService = Depends(CartService.from_request_private),
         product_service: ProductService = Depends(ProductService.from_request_private),
-):
-    return await order_service.create(data=data, order_item_service=order_item_service, product_service=product_service)
+        user_service: UserService = Depends(UserService.from_request_private)
+) -> OrderPaymentOut:
+    return await order_service.create(
+        data=data,
+        order_item_service=order_item_service,
+        product_service=product_service,
+        user_service=user_service
+    )

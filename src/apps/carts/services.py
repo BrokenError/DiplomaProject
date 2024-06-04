@@ -1,24 +1,27 @@
 from typing import Optional, List, Tuple
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.sql import Select
 
-from apps.carts.schemas import CartIn, CartUpdate, CartPayment
+from apps.carts.schemas import CartIn, CartUpdate
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.services import ServiceBase
 from apps.favourites.services import FavouriteService
 from apps.orders.schemas import OrderStatus
+from apps.orders.services import OrderService
 from db.models import OrderItem, Order, Product
 
 
 class CartService(ServiceBase):
     Model = OrderItem
 
-    async def payment(self, data: Optional[CartPayment]):
-        # integrations with service payment
-        pass
+    async def payment(self, request: Request, order_service: OrderService):
+        print(request.query_params)
+        label = request.query_params.get('label')
+        order_service.get_instance(id_instance=int(label.split(' ')[-1]))
+        return None
 
     async def add(
             self, *,
@@ -78,7 +81,7 @@ class CartService(ServiceBase):
         return (await self.manager.execute(
             select(Order)
             .options(joinedload(Order.order_items))
-            .where(Order.status == OrderStatus.CART)
+            .where(Order.status == OrderStatus.cart)
             .where(Order.id_user == self.id_user)
         )).scalars().first()
 
@@ -114,7 +117,7 @@ class CartService(ServiceBase):
                     .filter(OrderItem.id_user == self.id_user)
                     .offset(offset)
                     .join(Order)
-                    .where(Order.status == OrderStatus.CART)
+                    .where(Order.status == OrderStatus.cart)
                     .where(self.Model.id_order == Order.id)
                 )
             ).scalars().all(),

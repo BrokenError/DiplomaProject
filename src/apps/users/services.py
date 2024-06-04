@@ -116,14 +116,6 @@ class UserService(ServiceBase):
                 f'\nКоманда {settings_app.COMPANY_NAME.capitalize()}')
         msg.attach(MIMEText(body, 'plain'))
 
-        # with open('notification.html', 'r') as file:
-        #     template_content = file.read()
-
-        # template_content = template_content.replace('$ACCOUNT', f'{email}')
-        # template_content = template_content.replace('$CODE', f'{code}')
-        # template_content = template_content.replace('$COMPANY_NAME', f'{settings_app.COMPANY_NAME.capitalize()}')
-
-        # msg.attach(MIMEText(template_content, 'html'))
         await smtp_client.connect()
         await smtp_client.send(msg)
         await smtp_client.close()
@@ -138,7 +130,7 @@ class UserService(ServiceBase):
             id_user = (await self.create(data=data)).id
             order = await self.manager.create(
                 Order,
-                {"status": OrderStatus.CART, "id_user": id_user, "payment_method": "Отсутствует"}
+                {"status": OrderStatus.cart, "id_user": id_user, "payment_method": "Отсутствует"}
             )
             await self.manager.session.refresh(order)
         else:

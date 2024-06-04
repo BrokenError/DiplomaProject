@@ -5,9 +5,8 @@ Revises: f286ae901c28
 Create Date: 2024-05-28 18:01:30.071921
 
 """
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '998ebd150cbb'
@@ -24,8 +23,8 @@ def upgrade():
                existing_type=sa.VARCHAR(),
                nullable=False)
     op.add_column('smartphones', sa.Column('screen_diagonal', sa.Float(), nullable=False))
-    op.add_column('smartphones', sa.Column('processor_frequency', sa.Float(), nullable=True))
-    op.add_column('smartwatches', sa.Column('screen_diagonal', sa.Float(), nullable=False))
+    op.add_column('smartphones', sa.Column('processor_frequency', sa.Float(), nullable=False))
+    op.add_column('smartwatches', sa.Column('screen_diagonal', sa.Float(), nullable=True))
     op.add_column('tablets', sa.Column('screen_diagonal', sa.Float(), nullable=False))
     op.add_column('tablets', sa.Column('processor_frequency', sa.Float(), nullable=False))
     op.add_column('televisions', sa.Column('screen_diagonal', sa.Float(), nullable=False))
