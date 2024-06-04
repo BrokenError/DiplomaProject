@@ -1,4 +1,3 @@
-import re
 from typing import Any
 
 import wtforms
@@ -8,6 +7,7 @@ from starlette.requests import Request
 
 from apps.commons.managers.base import ManagerBase
 from apps.orders.schemas import OrderStatus
+from apps.users.schemas import UserAdminSchema
 from db.database import SessionLocal
 from db.models import User, Order
 from field_names_ru import UserFields
@@ -39,8 +39,7 @@ class UserAdmin(ModelView, model=User):
     name_plural = "Пользователи"
 
     async def insert_model(self, request: Request, data: dict) -> Any:
-        if not re.match(settings_app.EMAIL_REGEX, data['email']):
-            raise ValueError('Неверный формат почты')
+        data = UserAdminSchema(**data).dict()
 
         user = await super().insert_model(data=data, request=request)
 
@@ -48,7 +47,7 @@ class UserAdmin(ModelView, model=User):
             manager = ManagerBase(session=session)
             order = await manager.create(
                 Order,
-                {"status": OrderStatus.CART, "payment_method": "Отсутствует"} | {"id_user": int(user.id)}
+                {"status": OrderStatus.cart, "payment_method": "Отсутствует"} | {"id_user": int(user.id)}
             )
             await manager.session.refresh(order)
         return user

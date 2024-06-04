@@ -3,11 +3,12 @@ from typing import Optional
 from pydantic import Field
 from pydantic.types import PositiveInt
 
-from apps.products.schemas import ProductShort, TechnicOut, TechnicIn, TechnicList
+from apps.products.schemas import ProductShort, TechnicOut, TechnicAdminSchema, TechnicList
+from field_names_ru import LaptopFields
 
 
-class LaptopIn(TechnicIn):
-    consumption: PositiveInt = Field()
+class LaptopAdminSchema(TechnicAdminSchema):
+    consumption: int = Field()
     keyboard_layout: str = Field()
     keyboard_backlight: str = Field()
     touchpad: str = Field()
@@ -22,8 +23,8 @@ class LaptopIn(TechnicIn):
     discrete_graphics: Optional[str] = Field()
     video_chip: str = Field()
     video_memory_type: Optional[str] = Field()
-    video_memory: PositiveInt = Field()
-    clock_speed: PositiveInt = Field()
+    video_memory: int = Field()
+    clock_speed: int = Field()
     voice_assistant: Optional[str] = Field()
     wifi_availability: bool = Field()
     wifi_standard: Optional[str] = Field()
@@ -32,6 +33,15 @@ class LaptopIn(TechnicIn):
     usb_ports: Optional[str] = Field()
     battery_life: float = Field()
     microphone: Optional[bool] = Field(default=True)
+
+    _validate_fields = TechnicAdminSchema.create_validator([
+        'consumption',
+        'number_cores',
+        'processor_frequency',
+        'number_threads',
+        'video_memory',
+        'clock_speed'
+    ], model_ru_fields=LaptopFields)
 
 
 class LaptopOut(TechnicOut):

@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.pagination.utils import get_pagination
 from apps.favourites.services import FavouriteService
-from apps.products.queryparams import FilterSmartwatch, OrderingProduct
+from apps.products.queryparams import OrderingProduct
+from apps.smartwatches.queryparams import FilterSmartwatch
 from apps.smartwatches.schemas import SmartwatchList, SmartwatchOut
 from apps.smartwatches.services import SmartwatchService
 from dependencies import QUERYFILTER

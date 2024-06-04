@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.pagination.utils import get_pagination
 from apps.favourites.services import FavouriteService
-from apps.products.queryparams import OrderingProduct, FilterTablet
+from apps.products.queryparams import OrderingProduct
+from apps.tablets.queryparams import FilterTablet
 from apps.tablets.schemas import TabletList, TabletOut
 from apps.tablets.services import TabletService
 from dependencies import QUERYFILTER

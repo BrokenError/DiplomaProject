@@ -1,4 +1,8 @@
+from contextlib import contextmanager
 from typing import Any
+
+from fastapi import HTTPException
+from pydantic_core import ValidationError
 
 
 class ExceptionCRM(Exception):
@@ -13,6 +17,21 @@ class ExceptionValidation(ExceptionCRM):
             code_status=400,
             details=details
         )
+
+
+class CustomValidationException(HTTPException):
+    def __init__(self, detail: str):
+        self.field = None
+        super().__init__(status_code=422, detail=detail)
+
+
+@contextmanager
+def validation_context(detail: str, field: Any = None):
+    try:
+        yield
+    except (ValueError, ValidationError):
+        detail = f'Неверное значение поля «{field}». {detail}'
+        raise CustomValidationException(detail)
 
 
 class ExceptionNotFound(ExceptionCRM):

@@ -1,4 +1,5 @@
 import logging
+import urllib.parse
 from typing import Optional, List, Tuple
 
 from fastapi import HTTPException
@@ -6,16 +7,17 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import Select
 
-from apps.carts.services import CartService
 from apps.commons.basics.exceptions import ExceptionValidation
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.querystrings_v2.schemas import Direction
 from apps.commons.services.base import ServiceBase
 from apps.favourites.services import FavouriteService
-from apps.orders.schemas import OrderIn, OrderStatus
+from apps.orders.schemas import OrderIn, OrderStatus, OrderPaymentOut
 from apps.products.services import ProductService
 from apps.reviews.services import ReviewService
+from apps.users.services import UserService
 from db.models import Product, Order, OrderItem, Photo
+from settings import settings_app
 
 logger = logging.getLogger('orders')
 
@@ -23,15 +25,17 @@ logger = logging.getLogger('orders')
 class OrderService(ServiceBase):
     Model = Order
     STATUS = 'cart'
+    PAYMENT_CARD = 'card'
 
     async def create(
             self,
             *,
             data: OrderIn = None,
             data_extra: Optional[dict] = None,
-            order_item_service: Optional[CartService] = None,
-            product_service: Optional[ProductService] = None
-    ) -> Model:
+            order_item_service=None,
+            product_service: Optional[ProductService] = None,
+            user_service: UserService = None,
+    ) -> OrderPaymentOut:
         if not data and not data_extra:
             raise ExceptionValidation("'data' and 'data_extra' params are None. Can not create empty instance.")
 
@@ -42,7 +46,7 @@ class OrderService(ServiceBase):
             data_create={
                 "id_user": self.id_user,
                 "payment_method": data.get("payment_method"),
-                "status": OrderStatus.ASSEMBLY,
+                "status": OrderStatus.assembly,
             }
         )
 
@@ -57,18 +61,39 @@ class OrderService(ServiceBase):
                         id_order=user_order_cart.id
                     ))
             ).scalars().first()
+            if item is None:
+                raise HTTPException(status_code=404, detail="The item does not in cart")
+            item.id_order = order.id
+
             product = (
                 await self.manager.execute(product_service.select_visible(id=item.id_product))
             ).scalars().first()
             if product.quantity < item.quantity:
                 raise HTTPException(status_code=400, detail="Quantity must be greater than in product quantity.")
             product.quantity -= item.quantity
-            if item is None:
-                raise HTTPException(status_code=404, detail="The item does not in cart")
-            item.id_order = order.id
-        await order_item_service.manager.session.commit()
+            if product.quantity == 0:
+                product.is_active = False
 
-        return order
+        if order.payment_method == self.PAYMENT_CARD:
+            user = await user_service.get_instance(id_instance=self.id_user)
+            base_url = "https://yoomoney.ru/quickpay/confirm"
+            params = {
+                "receiver": {settings_app.YOOMONEY_RECEIVER},
+                f"&formcomment=Оплата заказа №{order.id} пользователя {user.email}"
+                f"&short-dest=Оплата заказа №{order.id}"
+                "quickpay-form": "shop",
+                "targets": "Оплата заказа",
+                "paymentType": "AC",
+                "sum": data['cost'],
+                "label": f"№ {order.id}",
+                "successURL": f"{settings_app.BASE_URL}/api/v1/cart/payment"
+            }
+            query_string = urllib.parse.urlencode(params)
+            payment_url = f"{base_url}?{query_string}"
+            return OrderPaymentOut(url=payment_url)
+
+        await order_item_service.manager.session.commit()
+        return OrderPaymentOut(url=None)
 
     async def get_instance(self, id_instance: int) -> Model:
         return (await self.manager.execute(

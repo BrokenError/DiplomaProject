@@ -1,12 +1,16 @@
+import re
 from datetime import datetime, date
 from enum import Enum
-from typing import Optional, List
+from typing import Optional, List, Any
 
 from pydantic import BaseModel, PositiveInt, Field
 from pydantic.class_validators import validator
+from wtforms.validators import ValidationError
 
+from apps.commons.basics.exceptions import validation_context
 from apps.commons.pagination.schemas import MetaPage
 from apps.reviews.schemas import ReviewCustom
+from field_names_ru import ProductFields, TechnicsFields
 from settings import settings_app
 
 
@@ -37,27 +41,99 @@ class ProductBase(BaseModel):
         return None
 
 
-class ProductIn(BaseModel):
+class TypeEnum(Enum):
+    television = "television"
+    laptop = "laptop"
+    tablet = "tablet"
+    smartphone = "smartphone"
+    smartwatch = "smartwatch"
+    accessory = "accessory"
+
+
+class ProductAdminSchema(BaseModel):
     date_created: datetime = Field(default=datetime.now())
     model: str = Field()
+    brand: Optional[str] = Field()
     name: str = Field()
     type: str = Field()
     color_main: str = Field()
+    color_hex: str = Field()
     material: str = Field()
-    length: float = Field()
+    height: float = Field()
     width: float = Field()
     weight: float = Field()
+    thickness: float = Field()
     description: Optional[str] = Field()
     price: float = Field()
-    discount: Optional[int] = Field(gte=0)
-    id_provider: PositiveInt = Field()
+    discount: Optional[int] = Field()
+    id_provider: int = Field()
     is_active: bool = Field()
-    quantity: int = Field(gte=0)
+    quantity: int = Field()
     equipment: Optional[str] = Field()
+
+    @classmethod
+    def create_validator(cls, fields: List[str], model_ru_fields):
+        @validator(*fields, pre=True, allow_reuse=True)
+        def validate_fields(value, field: Any):
+            with validation_context(
+                    field=model_ru_fields[field.name],
+                    detail=f"Значение должно быть больше нуля и длиной менее {settings_app.MAX_LENGTH_NUMBER}"
+            ):
+                if value is not None and (value < 1 or value and len(str(value)) >= settings_app.MAX_LENGTH_NUMBER):
+                    raise ValueError()
+            return value
+
+        return validate_fields
+
+    @validator('type', pre=True)
+    def validate_type(cls, value, field: Any):
+        with validation_context(
+            field=ProductFields[field.name],
+            detail=f"Возможные значения: {', '.join(CategoryEnum.__members__)}"
+        ):
+            TypeEnum(value)
+        return value
+
+    @validator('color_hex', pre=True)
+    def validate_color_hex(cls, value, field: Any) -> str:
+        with validation_context(
+            field=ProductFields[field.name],
+            detail=f"Формат данных: #XXXXXX"
+        ):
+            if not re.match(r'^#([A-Fa-f0-9]{6})$', value):
+                raise ValidationError()
+        return value
+
+    @validator('discount', 'quantity', 'price', pre=True)
+    def check_quantity(cls, value, field):
+        with validation_context(
+            field=field.name,
+            detail="Значение должно быть не отрицательным"
+        ):
+            if value < 0:
+                raise ValidationError()
+        return value
+
+    @validator('height', 'width', 'weight', 'thickness', pre=True)
+    def validate_sizes(cls, value, field: Any) -> str:
+        with validation_context(
+                field=ProductFields[field.name],
+                detail=f"Формат данных не должен превышать 6-и цифр: XXXX,XX"
+        ):
+            if len(str(value)) > 7:
+                raise ValueError()
+        return value
+
+    @validator('color_main', 'brand', 'model', 'material', pre=True)
+    def capitalize_strings(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            return value.capitalize()
+        return value
 
     class Config:
         orm_mode = True
         allow_population_by_field_name = True
+        validate_assignment = True
         smart_union = True
 
 
@@ -94,6 +170,7 @@ class ProductShort(ProductBase):
 class ProductOut(ProductBase):
     date_created: datetime = Field(default=datetime.now())
     model: str = Field()
+    brand: Optional[str] = Field()
     type: str = Field()
     color_main: str = Field()
     material: str = Field()
@@ -139,7 +216,7 @@ class ProductList(BaseModel):
 
 
 class ProductDetail(BaseModel):
-    items: ProductIn
+    items: ProductAdminSchema
 
     class Config:
         orm_mode = True
@@ -147,9 +224,9 @@ class ProductDetail(BaseModel):
         smart_union = True
 
 
-class TechnicIn(ProductIn):
+class TechnicAdminSchema(ProductAdminSchema):
     date_release: date = Field()
-    screen_diagonal: str = Field()
+    screen_diagonal: int = Field()
     screen_resolution: str = Field()
     screen_format: str = Field()
     operating_system: str = Field()
@@ -159,9 +236,16 @@ class TechnicIn(ProductIn):
     matrix_contrast: str = Field()
     sound_technology: str = Field()
     headphone_output: bool = Field()
-    color_other: str = Field()
-    memory_ram: Optional[PositiveInt] = Field()
-    memory: Optional[PositiveInt] = Field()
+    color_other: Optional[str] = Field()
+    memory_ram: Optional[int] = Field()
+    memory: Optional[int] = Field()
+
+    _validate_fields = ProductAdminSchema.create_validator([
+        'matrix_frequency',
+        'memory_ram',
+        'memory',
+        'screen_diagonal'
+    ], model_ru_fields=TechnicsFields)
 
 
 class TechnicOut(ProductOut):
@@ -176,7 +260,7 @@ class TechnicOut(ProductOut):
     matrix_contrast: str = Field()
     sound_technology: str = Field()
     headphone_output: bool = Field()
-    color_other: str = Field()
+    color_other: Optional[str] = Field()
     memory_ram: int = Field()
     memory: int = Field()
     reviews: List[ReviewCustom] = Field(default_factory=list)

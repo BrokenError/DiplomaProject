@@ -62,4 +62,4 @@ services:
 
 networks:
   techzone:
-    driver: bridge
+    external: true
