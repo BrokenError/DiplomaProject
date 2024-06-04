@@ -4,16 +4,26 @@ from urllib.request import Request
 from markupsafe import Markup
 from sqladmin import ModelView
 
+from apps.accessories.schemas import AccessoryAdminSchema
 from apps.accessories.services import AccessoryService
 from apps.commons.managers.base import ManagerBase
+from apps.laptops.schemas import LaptopAdminSchema
+from apps.products.schemas import ProductAdminSchema
+from apps.smartphones.schemas import SmartphoneAdminSchema
+from apps.smartwatches.schemas import SmartwatchAdminSchema
+from apps.tablets.schemas import TabletAdminSchema
+from apps.televisions.schemas import TelevisionAdminSchema
 from db.database import SessionLocal
-from db.models import Product, Photo
+from db.models import Product, Photo, Accessory, Laptop, Tablet, Television, Smartphone, Smartwatch
 from field_names_ru import PhotoFields, ProductFields
 from settings import settings_app
 
 
 class BaseTechnic(ModelView):
-    column_exclude_list = ['id_author', 'id_product', 'id_provider', 'id_editor_last']
+    column_list = [
+        'id', 'photos', 'brand', 'model', 'type', 'price',
+        'discount', 'quantity', 'color_main', 'is_active', 'is_deleted'
+    ]
     form_excluded_columns = ['photos', 'is_deleted', 'date_created']
     category = "Категории товаров"
     can_create = True
@@ -21,35 +31,45 @@ class BaseTechnic(ModelView):
     can_delete = True
     can_view_details = True
 
+    def __init__(self):
+        super().__init__()
+
     async def delete_model(self, request: Request, pk: Any) -> None:
         async with SessionLocal() as session:
             manager = ManagerBase(session=session)
-            service = AccessoryService(manager=manager, id_user=None)
+            service = AccessoryService(manager=manager, id_user=False)
             await manager.update(
-                await service.get_type_product(int(pk)),
+                await service.get_type_product(id_instance=int(pk)),
                 {
                     'is_deleted': True
                 }
             )
 
     @staticmethod
-    def validate_data(data: dict):
-        if data['type'] not in settings_app.CATEGORIES:
-            raise ValueError(f"Неверный формат категории. Возможные значения: {', '.join(settings_app.CATEGORIES)}")
-        elif min(data['height'], data['width'], data['weight'], data['thickness']) <= 0:
-            raise ValueError('Размеры и вес товара должны быть больше нуля')
-        elif min(data['price'], data['discount']) < 0:
-            raise ValueError('Цена и скидка товара должна быть положительная')
-        elif data['quantity'] < 0:
-            raise ValueError('Количество товара должно быть положительное')
-        return data
+    def validate_data(data: dict, model) -> dict:
+        schemas = {
+            Product: ProductAdminSchema,
+            Accessory: AccessoryAdminSchema,
+            Laptop: LaptopAdminSchema,
+            Tablet: TabletAdminSchema,
+            Television: TelevisionAdminSchema,
+            Smartphone: SmartphoneAdminSchema,
+            Smartwatch: SmartwatchAdminSchema
+        }
+
+        data = schemas[model](**data, id_provider=data['provider'])
+        return data.dict()
 
     async def update_model(self, request: Request, pk: str, data: dict) -> Any:
-        self.validate_data(data)
+        data = {**data, **self.validate_data(data, self.model)}
+        if data['quantity'] < 1:
+            data['is_active'] = False
         return await super().update_model(request, pk, data)
 
     async def insert_model(self, request: Request, data: dict) -> Any:
-        self.validate_data(data)
+        data = {**data, **self.validate_data(data, self.model)}
+        if data['quantity'] < 1:
+            data['is_active'] = False
         return await super().insert_model(data=data, request=request)
 
 

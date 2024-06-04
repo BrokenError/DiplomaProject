@@ -31,6 +31,7 @@ class SettingsApp(BaseSettings):
     PATH_STORAGE_BASE = FileSystemStorage(path='/techzone/static')
     PATH_STORAGE_USER = FileSystemStorage(path='/techzone/media/users')
     NAME_SERVICE: str = _NAME_SERVICE_DEFAULT
+    PSYCHOLOGICAL_ENDINGS: list[int] = [99, 999, 9999, 99999]
     SERVER_HOST: str = '0.0.0.0'
     SERVER_PORT: int = 8001
     SMTP_SERVER = ''
@@ -43,6 +44,8 @@ class SettingsApp(BaseSettings):
     ALGORITHM = ''
     ACCESS_TOKEN_EXPIRE_MINUTES = 0
     COMPANY_NAME = ''
+    MAX_LENGTH_NUMBER = 5
+    YOOMONEY_RECEIVER = ''
 
     IS_DEBUG: bool = False
 

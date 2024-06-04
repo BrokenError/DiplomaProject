@@ -2,10 +2,11 @@ from typing import Optional
 
 from pydantic import Field
 
-from apps.products.schemas import ProductShort, TechnicIn, TechnicOut, TechnicList
+from apps.products.schemas import ProductShort, TechnicAdminSchema, TechnicOut, TechnicList
+from field_names_ru import SmartwatchFields
 
 
-class SmartwatchIn(TechnicIn):
+class SmartwatchAdminSchema(TechnicAdminSchema):
     material_belt: str = Field()
     pixel_density: int = Field()
     degree_protection: str = Field()
@@ -14,6 +15,12 @@ class SmartwatchIn(TechnicIn):
     fast_charge: bool = Field()
     water_resistance: Optional[int] = Field()
     measurements: Optional[str] = Field()
+
+    _validate_fields = TechnicAdminSchema.create_validator([
+        'pixel_density',
+        'water_resistance',
+        'accumulator_capacity',
+    ], model_ru_fields=SmartwatchFields)
 
 
 class SmartwatchOut(TechnicOut):

@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.pagination.utils import get_pagination
 from apps.favourites.services import FavouriteService
-from apps.products.queryparams import OrderingProduct, FilterTelevision
+from apps.products.queryparams import OrderingProduct
+from apps.televisions.queryparams import FilterTelevision
 from apps.televisions.schemas import TelevisionList, TelevisionOut
 from apps.televisions.services import TelevisionService
 from dependencies import QUERYFILTER

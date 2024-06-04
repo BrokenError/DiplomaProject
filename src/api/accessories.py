@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends
 
+from apps.accessories.queryparams import FilterAccessory
 from apps.accessories.schemas import AccessoryList, AccessoryOut
 from apps.accessories.services import AccessoryService
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.pagination.utils import get_pagination
 from apps.favourites.services import FavouriteService
-from apps.products.queryparams import OrderingProduct, FilterAccessory
+from apps.products.queryparams import OrderingProduct
 from dependencies import QUERYFILTER
 
 router = APIRouter(prefix='/accessories', tags=['Accessories'])

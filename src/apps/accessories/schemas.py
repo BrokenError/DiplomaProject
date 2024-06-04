@@ -3,11 +3,11 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from apps.commons.pagination.schemas import MetaPage
-from apps.products.schemas import ProductIn, ProductShort, ProductOut
+from apps.products.schemas import ProductAdminSchema, ProductShort, ProductOut
 
 
-class AccessoryIn(ProductIn):
-    features: Optional[str] = Field(default="нет")
+class AccessoryAdminSchema(ProductAdminSchema):
+    features: Optional[str] = Field()
 
 
 class AccessoryOut(ProductOut):

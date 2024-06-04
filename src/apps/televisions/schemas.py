@@ -2,10 +2,11 @@ from typing import Optional
 
 from pydantic import Field
 
-from apps.products.schemas import ProductShort, TechnicIn, TechnicOut, TechnicList
+from apps.products.schemas import ProductShort, TechnicAdminSchema, TechnicOut, TechnicList
+from field_names_ru import TelevisionFields
 
 
-class TelevisionIn(TechnicIn):
+class TelevisionAdminSchema(TechnicAdminSchema):
     consumption: int = Field()
     hdr_support: Optional[bool] = Field()
     angle_view: Optional[str] = Field()
@@ -22,6 +23,10 @@ class TelevisionIn(TechnicIn):
     smartphone_control: bool = Field(default=False)
     management_application: Optional[str] = Field()
     bluetooth_control: bool = Field(default=False)
+
+    _validate_fields = TechnicAdminSchema.create_validator([
+        'consumption',
+    ], model_ru_fields=TelevisionFields)
 
 
 class TelevisionOut(TechnicOut):

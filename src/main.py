@@ -34,7 +34,13 @@ async def lifespan(_: FastAPI):
     await redis.down()
 
 
-app = FastAPI(title='Магазин TechZone', lifespan=lifespan)
+app = FastAPI(
+    title='Магазин TechZone',
+    lifespan=lifespan,
+    docs_url='/api/v1/docs',
+    openapi_url='/api/v1/openapi',
+    redoc_url='/api/v1/redoc'
+)
 
 app.include_router(router, prefix='/api/v1')
 
@@ -91,6 +97,6 @@ if __name__ == '__main__':
         lifespan="on",
         forwarded_allow_ips='*',
         proxy_headers=True,
-        ssl_keyfile='/techzone/letsencrypt/live/wis-techzone.ru/privkey.pem',
-        ssl_certfile='/techzone/letsencrypt/live/wis-techzone.ru/fullchain.pem'
+        # ssl_keyfile='/techzone/letsencrypt/live/wis-techzone.ru/privkey.pem',
+        # ssl_certfile='/techzone/letsencrypt/live/wis-techzone.ru/fullchain.pem'
     )

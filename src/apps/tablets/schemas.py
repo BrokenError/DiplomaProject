@@ -3,10 +3,11 @@ from typing import Optional
 from pydantic import Field
 
 from apps.commons.basics.schemas import CameraIn, CameraOut
-from apps.products.schemas import ProductShort, TechnicIn, TechnicOut, TechnicList
+from apps.products.schemas import ProductShort, TechnicAdminSchema, TechnicOut, TechnicList
+from field_names_ru import TabletFields
 
 
-class TabletIn(TechnicIn, CameraIn):
+class TabletAdminSchema(TechnicAdminSchema, CameraIn):
     pixel_density: int = Field()
     degree_protection: str = Field()
     processor_model: str = Field()
@@ -19,6 +20,13 @@ class TabletIn(TechnicIn, CameraIn):
     fast_charge: bool = Field()
     sensors: Optional[str] = Field()
     communicate_module: bool = Field(default=False)
+
+    _validate_fields = TechnicAdminSchema.create_validator([
+        'pixel_density',
+        'processor_frequency',
+        'number_cores',
+        'accumulator_capacity'
+    ], model_ru_fields=TabletFields)
 
 
 class TabletOut(TechnicOut, CameraOut):

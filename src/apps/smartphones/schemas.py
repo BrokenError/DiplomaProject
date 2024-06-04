@@ -3,10 +3,11 @@ from typing import Optional
 from pydantic import Field
 
 from apps.commons.basics.schemas import CameraOut, CameraIn
-from apps.products.schemas import ProductShort, TechnicIn, TechnicOut, TechnicList
+from apps.products.schemas import ProductShort, TechnicAdminSchema, TechnicOut, TechnicList
+from field_names_ru import SmartphoneFields
 
 
-class SmartphoneIn(TechnicIn, CameraIn):
+class SmartphoneAdminSchema(TechnicAdminSchema, CameraIn):
     support_lte: bool = Field()
     sim_card_format: str = Field()
     pixel_density: int = Field()
@@ -20,6 +21,13 @@ class SmartphoneIn(TechnicIn, CameraIn):
     communication_standard: Optional[str] = Field()
     sim_card_number: Optional[str] = Field()
     sensors: Optional[str] = Field()
+
+    _validate_fields = TechnicAdminSchema.create_validator([
+        'pixel_density',
+        'processor_frequency',
+        'number_cores',
+        'accumulator_capacity',
+    ], model_ru_fields=SmartphoneFields)
 
 
 class SmartphoneOut(TechnicOut, CameraOut):
