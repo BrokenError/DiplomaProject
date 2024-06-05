@@ -1,6 +1,6 @@
 from typing import Optional, List, Tuple
 
-from fastapi import HTTPException, Request
+from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.sql import Select
@@ -10,18 +10,11 @@ from apps.commons.pagination.schemas import Pagination
 from apps.commons.services import ServiceBase
 from apps.favourites.services import FavouriteService
 from apps.orders.schemas import OrderStatus
-from apps.orders.services import OrderService
 from db.models import OrderItem, Order, Product
 
 
 class CartService(ServiceBase):
     Model = OrderItem
-
-    async def payment(self, request: Request, order_service: OrderService):
-        print(request.query_params)
-        label = request.query_params.get('label')
-        order_service.get_instance(id_instance=int(label.split(' ')[-1]))
-        return None
 
     async def add(
             self, *,
@@ -73,7 +66,8 @@ class CartService(ServiceBase):
             pagination=pagination
         )
         for order_item in result["items"]:
-            await self.check_favourites(order_item.product, favourite_service)
+            if order_item.product.is_deleted:
+                await self.delete_from_cart(id_instance=order_item.product.id)
             order_item.product.is_in_cart = True
         return result
 
@@ -108,21 +102,22 @@ class CartService(ServiceBase):
 
     async def get_fragment(self, query: Select, limit: Optional[int], offset: int) -> Tuple[List, int]:
         query_count = select(func.count(1)).select_from(query)
-        return (
-            (
-                await self.manager.execute(
-                    query.limit(limit)
-                    .options(selectinload(OrderItem.product).selectinload(Product.photos))
-                    .join(OrderItem.product)
-                    .filter(OrderItem.id_user == self.id_user)
-                    .offset(offset)
-                    .join(Order)
-                    .where(Order.status == OrderStatus.cart)
-                    .where(self.Model.id_order == Order.id)
+        order_items = (
+            await self.manager.execute(
+                query.limit(limit)
+                .options(selectinload(OrderItem.product).selectinload(Product.photos))
+                .join(OrderItem.product)
+                .filter(OrderItem.id_user == self.id_user)
+                .offset(offset)
+                .join(Order)
+                .where(Order.status == OrderStatus.cart)
+                .where(self.Model.id_order == Order.id)
                 )
-            ).scalars().all(),
-            (await self.manager.execute(query_count)).scalar()
-        )
+            ).scalars().all()
+        for order in order_items:
+            order.product.photos = [photo for photo in order.product.photos if not photo.is_banner]
+
+        return order_items, (await self.manager.execute(query_count)).scalar()
 
     async def delete_from_cart(self, id_instance: int):
         user_order_cart = await self.get_order_cart()

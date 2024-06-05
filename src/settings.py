@@ -46,6 +46,8 @@ class SettingsApp(BaseSettings):
     COMPANY_NAME = ''
     MAX_LENGTH_NUMBER = 5
     YOOMONEY_RECEIVER = ''
+    TOKEN_PAYMENT = ''
+    PAYMENT_WAIT_SECONDS = 360
 
     IS_DEBUG: bool = False
 

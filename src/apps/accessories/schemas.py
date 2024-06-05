@@ -11,6 +11,7 @@ class AccessoryAdminSchema(ProductAdminSchema):
 
 
 class AccessoryOut(ProductOut):
+    memory_variations: None = Field()
     features: Optional[str] = Field()
 
 

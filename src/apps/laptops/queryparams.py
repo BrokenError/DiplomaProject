@@ -14,6 +14,7 @@ class FilterLaptop:
     model__in_arr: Optional[str] = Query(default=None, alias='model_in')
     material__in_arr: Optional[str] = Query(default=None, alias='material_in')
     memory_ram__in_arr: Optional[str] = Query(default=None, alias='memory_ram_in')
+    date_release__yyyy_in: Optional[str] = Query(default=None, alias='date_release_in')
     screen_diagonal__in_arr: Optional[str] = Query(default=None, alias='screen_diagonal_in')
     processor_model__in_arr: Optional[str] = Query(default=None, alias='processor_model_in')
     video_card_model__in_arr: Optional[str] = Query(default=None, alias='video_card_model_in')

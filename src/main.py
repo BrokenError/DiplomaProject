@@ -97,6 +97,6 @@ if __name__ == '__main__':
         lifespan="on",
         forwarded_allow_ips='*',
         proxy_headers=True,
-        # ssl_keyfile='/techzone/letsencrypt/live/wis-techzone.ru/privkey.pem',
-        # ssl_certfile='/techzone/letsencrypt/live/wis-techzone.ru/fullchain.pem'
+        ssl_keyfile='/techzone/letsencrypt/live/wis-techzone.ru/privkey.pem',
+        ssl_certfile='/techzone/letsencrypt/live/wis-techzone.ru/fullchain.pem'
     )

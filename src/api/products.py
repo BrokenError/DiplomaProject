@@ -1,10 +1,12 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, Query
 
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.pagination.utils import get_pagination
 from apps.favourites.services import FavouriteService
 from apps.products.queryparams import OrderingProduct, FilterProduct
-from apps.products.schemas import ProductList, ProductType, SuggestionOut
+from apps.products.schemas import ProductList, ProductType, SuggestionOut, BannersProduct
 from apps.products.services import ProductService
 from dependencies import QUERYFILTER
 from settings import settings_app
@@ -111,3 +113,16 @@ async def get_filters_form(
         product_service: ProductService = Depends(ProductService.from_request_protected)
 ):
     return await product_service.get_filters_form(model)
+
+
+@router.get(
+    path='/banners',
+    response_model=List[BannersProduct],
+    name='Get banners',
+    description='Get banners',
+    tags=['Products']
+)
+async def get_list_banners(
+        product_service: ProductService = Depends(ProductService.from_request_protected)
+):
+    return await product_service.get_photos_slider()

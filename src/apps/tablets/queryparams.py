@@ -15,7 +15,7 @@ class FilterTablet:
     material__in_arr: Optional[str] = Query(default=None, alias='material_in')
     memory__in_arr: Optional[str] = Query(default=None, alias='memory_in')
     memory_ram__in_arr: Optional[str] = Query(default=None, alias='memory_ram_in')
-    date_release__yyyy_eq: Optional[str] = Query(default=None, alias='date_release_in')
+    date_release__yyyy_in: Optional[str] = Query(default=None, alias='date_release_in')
     accumulator_capacity__in_arr: Optional[str] = Query(default=None, alias='accumulator_capacity_in')
     matrix_frequency__in_arr: Optional[str] = Query(default=None, alias='matrix_frequency_in')
     screen_diagonal__in_arr: Optional[str] = Query(default=None, alias='screen_diagonal_in')

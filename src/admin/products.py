@@ -5,27 +5,36 @@ from markupsafe import Markup
 from sqladmin import ModelView
 
 from apps.accessories.schemas import AccessoryAdminSchema
-from apps.accessories.services import AccessoryService
 from apps.commons.managers.base import ManagerBase
 from apps.laptops.schemas import LaptopAdminSchema
 from apps.products.schemas import ProductAdminSchema
+from apps.products.services import ProductService
 from apps.smartphones.schemas import SmartphoneAdminSchema
 from apps.smartwatches.schemas import SmartwatchAdminSchema
 from apps.tablets.schemas import TabletAdminSchema
 from apps.televisions.schemas import TelevisionAdminSchema
 from db.database import SessionLocal
 from db.models import Product, Photo, Accessory, Laptop, Tablet, Television, Smartphone, Smartwatch
-from field_names_ru import PhotoFields, ProductFields
+from field_names_ru import PhotoFields, TypeField, ProductFields
 from settings import settings_app
 
 
 class BaseTechnic(ModelView):
     column_list = [
         'id', 'photos', 'brand', 'model', 'type', 'price',
-        'discount', 'quantity', 'color_main', 'is_active', 'is_deleted'
+        'discount', 'name', 'quantity', 'color_main', 'is_active', 'is_deleted'
     ]
-    form_excluded_columns = ['photos', 'is_deleted', 'date_created']
+    form_excluded_columns = ['photos', 'date_created', 'type']
+    column_sortable_list = [
+        'brand', 'model', 'type',
+        'price', 'is_active', 'is_deleted',
+        'discount', 'name', 'quantity',
+        'quantity', 'color_main', 'id'
+    ]
+    searchable_list = ['name', 'price', 'color_main', 'brand', 'model', 'type', 'id']
+    column_default_sort = ['id']
     category = "Категории товаров"
+    can_export = False
     can_create = True
     can_edit = True
     can_delete = True
@@ -37,7 +46,7 @@ class BaseTechnic(ModelView):
     async def delete_model(self, request: Request, pk: Any) -> None:
         async with SessionLocal() as session:
             manager = ManagerBase(session=session)
-            service = AccessoryService(manager=manager, id_user=False)
+            service = ProductService(manager=manager, id_user=False)
             await manager.update(
                 await service.get_type_product(id_instance=int(pk)),
                 {
@@ -60,13 +69,21 @@ class BaseTechnic(ModelView):
         data = schemas[model](**data, id_provider=data['provider'])
         return data.dict()
 
+    async def list(self, request: Request):
+        list_products = await super().list(request)
+        for product in list_products.rows:
+            product.type = TypeField[product.type]
+        return list_products
+
     async def update_model(self, request: Request, pk: str, data: dict) -> Any:
+        data['type'] = self.model.__name__.lower()
         data = {**data, **self.validate_data(data, self.model)}
         if data['quantity'] < 1:
             data['is_active'] = False
         return await super().update_model(request, pk, data)
 
     async def insert_model(self, request: Request, data: dict) -> Any:
+        data['type'] = self.model.__name__.lower()
         data = {**data, **self.validate_data(data, self.model)}
         if data['quantity'] < 1:
             data['is_active'] = False
@@ -105,9 +122,10 @@ class ProductAdmin(BaseTechnic, model=Product):
 
 
 class PhotosAdmin(ModelView, model=Photo):
-    column_list = '__all__'
+    column_list = ['id', 'url', 'products', 'is_banner']
     column_labels = PhotoFields
     column_searchable_list = [Photo.url, Photo.id]
+    column_sortable_list = ['id', 'is_banner']
     column_default_sort = [(Product.id, True)]
     column_formatters = {
         "url": lambda m, a: Markup(
@@ -120,8 +138,10 @@ class PhotosAdmin(ModelView, model=Photo):
         ) if m.url else ''
     }
     can_create = True
+
     can_edit = True
     can_delete = True
+    can_export = False
     can_view_details = True
     name = "Фотография"
     name_plural = "Фотографии"

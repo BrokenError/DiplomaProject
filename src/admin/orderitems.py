@@ -8,8 +8,9 @@ from field_names_ru import OrderItemFields
 
 
 class OrderItemAdmin(ModelView, model=OrderItem):
+    column_list = ['id', 'user', 'order', 'product', 'quantity']
     column_labels = OrderItemFields
-    column_exclude_list = ['id_user', 'id_product', 'id_order']
+    column_sortable_list = ['id', 'quantity']
     column_searchable_list = [OrderItem.id_product, OrderItem.id]
     column_default_sort = [(OrderItem.id, True)]
     can_create = True

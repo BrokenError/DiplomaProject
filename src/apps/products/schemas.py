@@ -26,6 +26,7 @@ class ProductBase(BaseModel):
     id: Optional[PositiveInt] = Field()
     name: Optional[str] = Field()
     price: Optional[float] = Field()
+    is_active: Optional[bool] = Field()
     photos: Optional[List[PhotoOut]] = Field()
 
     class Config:
@@ -79,7 +80,7 @@ class ProductAdminSchema(BaseModel):
                     field=model_ru_fields[field.name],
                     detail=f"Значение должно быть больше нуля и длиной менее {settings_app.MAX_LENGTH_NUMBER}"
             ):
-                if value is not None and (value < 1 or value and len(str(value)) >= settings_app.MAX_LENGTH_NUMBER):
+                if value is not None and (value < 1 or value and len(str(value).replace('.', '')) >= settings_app.MAX_LENGTH_NUMBER):
                     raise ValueError()
             return value
 
@@ -120,14 +121,14 @@ class ProductAdminSchema(BaseModel):
                 field=ProductFields[field.name],
                 detail=f"Формат данных не должен превышать 6-и цифр: XXXX,XX"
         ):
-            if len(str(value)) > 7:
+            if len(str(value).replace('.', '')) > 6:
                 raise ValueError()
         return value
 
-    @validator('color_main', 'brand', 'model', 'material', pre=True)
-    def capitalize_strings(cls, value: Any) -> Any:
+    @validator('brand', 'model', 'material', pre=True)
+    def title_strings(cls, value: Any) -> Any:
         if isinstance(value, str):
-            return value.capitalize()
+            return value.title()
         return value
 
     class Config:
@@ -139,8 +140,6 @@ class ProductAdminSchema(BaseModel):
 
 class ProductCustom(ProductBase):
     discount: Optional[int] = Field()
-    is_in_cart: Optional[bool] = Field(default=False)
-    is_favourite: Optional[bool] = Field(default=False)
 
     class Config:
         orm_mode = True
@@ -152,14 +151,13 @@ class ProductCart(ProductCustom):
 
 class ProductWithIdReview(ProductCustom):
     id_review: Optional[PositiveInt] = Field(default=None)
+    is_deleted: bool = Field()
 
 
 class ProductShort(ProductBase):
     discount: Optional[int] = Field()
     reviews_count: Optional[int] = Field()
     average_rating: Optional[float] = Field()
-    is_favourite: Optional[bool] = Field(default=False)
-    is_in_cart: Optional[bool] = Field(default=False)
 
     class Config:
         orm_mode = True
@@ -186,8 +184,6 @@ class ProductOut(ProductBase):
     equipment: Optional[str] = Field()
     reviews_count: Optional[int] = Field()
     average_rating: Optional[float] = Field()
-    is_favourite: Optional[bool] = Field()
-    is_in_cart: Optional[bool] = Field(default=False)
     reviews: Optional[List[ReviewCustom]] = Field()
     color_variations: List[dict] = Field(default_factory=list)
 
@@ -237,7 +233,7 @@ class TechnicAdminSchema(ProductAdminSchema):
     sound_technology: str = Field()
     headphone_output: bool = Field()
     color_other: Optional[str] = Field()
-    memory_ram: Optional[int] = Field()
+    memory_ram: Optional[float] = Field()
     memory: Optional[int] = Field()
 
     _validate_fields = ProductAdminSchema.create_validator([
@@ -261,10 +257,23 @@ class TechnicOut(ProductOut):
     sound_technology: str = Field()
     headphone_output: bool = Field()
     color_other: Optional[str] = Field()
-    memory_ram: int = Field()
+    memory_ram: float = Field()
     memory: int = Field()
     reviews: List[ReviewCustom] = Field(default_factory=list)
-    memory_variations: dict = Field(default_factory=dict)
+    memory_variations: List[dict] = Field(default_factory=list)
+
+
+class BannersProduct(BaseModel):
+    link: str
+    id_product: int
+
+    @validator("link", pre=True)
+    def add_base_url(cls, value):
+        if value:
+            return f"{settings_app.BASE_URL}{value}"
+        return None
+
+
 
 
 class TechnicList(ProductList):

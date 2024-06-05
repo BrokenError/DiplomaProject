@@ -17,6 +17,7 @@ from settings import settings_app
 class UserAdmin(ModelView, model=User):
     column_list = '__all__'
     column_labels = UserFields
+    column_sortable_list = ['id', 'date_created']
     column_formatters = {
         "photo_url": lambda m, a: Markup(
             f'<a href="{settings_app.BASE_URL}{m.photo_url}">{settings_app.BASE_URL}{m.photo_url}</a>'
@@ -34,6 +35,7 @@ class UserAdmin(ModelView, model=User):
     form_overrides = dict(email=wtforms.EmailField)
     can_edit = True
     can_delete = True
+    can_export = False
     can_view_details = True
     plural = "Пользователь"
     name_plural = "Пользователи"

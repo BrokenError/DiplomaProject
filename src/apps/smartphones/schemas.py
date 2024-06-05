@@ -13,7 +13,7 @@ class SmartphoneAdminSchema(TechnicAdminSchema, CameraIn):
     pixel_density: int = Field()
     degree_protection: str = Field()
     processor_model: str = Field()
-    processor_frequency: int = Field()
+    processor_frequency: float = Field()
     number_cores: int = Field()
     accumulator_type: str = Field()
     accumulator_capacity: int = Field()
