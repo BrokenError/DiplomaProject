@@ -1,6 +1,6 @@
 from typing import Optional, List, Tuple
 
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.sql import Select
@@ -17,10 +17,10 @@ from db.models import OrderItem, Order, Product
 class CartService(ServiceBase):
     Model = OrderItem
 
-    async def payment(self, request: Request, order_service: OrderService):
-        print(request.query_params)
-        label = request.query_params.get('label')
-        order_service.get_instance(id_instance=int(label.split(' ')[-1]))
+    async def payment(self, query: Query, order_service: OrderService):
+        print(query)
+
+        # order_service.get_instance(id_instance=int(label.split(' ')[-1]))
         return None
 
     async def add(

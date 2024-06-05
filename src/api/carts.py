@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query
 
 from apps.carts.schemas import CartIn, CartList, CartOut, CartUpdate
 from apps.carts.services import CartService
@@ -81,17 +81,3 @@ async def delete(
         cart_service: CartService = Depends(CartService.from_request_private),
 ):
     return await cart_service.delete()
-
-
-@router.get(
-    path='/payment',
-    name='payment',
-    description='payment',
-    tags=['Cart']
-)
-async def create(
-        request: Request,
-        cart_service: CartService = Depends(CartService.from_request_private),
-        order_service: OrderService = Depends(OrderService.from_request_private)
-):
-    return await cart_service.payment(request, order_service=order_service)

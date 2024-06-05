@@ -1,16 +1,18 @@
+import asyncio
 import logging
-import urllib.parse
 from typing import Optional, List, Tuple
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import Select
+from yoomoney import Client, Quickpay
 
 from apps.commons.basics.exceptions import ExceptionValidation
+from apps.commons.managers.base import ManagerBase
 from apps.commons.pagination.schemas import Pagination
 from apps.commons.querystrings_v2.schemas import Direction
-from apps.commons.services.base import ServiceBase
+from apps.commons.services.base import ServiceBase, ServiceAuthenticate
 from apps.favourites.services import FavouriteService
 from apps.orders.schemas import OrderIn, OrderStatus, OrderPaymentOut
 from apps.products.services import ProductService
@@ -26,6 +28,21 @@ class OrderService(ServiceBase):
     Model = Order
     STATUS = 'cart'
     PAYMENT_CARD = 'card'
+    BACKGROUND_TASKS = set()
+
+    def __init__(self, manager: ManagerBase, id_user: [int, ServiceAuthenticate], *args, **kwargs):
+        super().__init__(id_user=id_user, manager=manager, *args, **kwargs)
+        self.client = Client(settings_app.TOKEN_PAYMENT)
+
+    async def check_payment(self, id_order: int, sleep_seconds: int):
+        await asyncio.sleep(sleep_seconds)
+        details = self.client.operation_history()
+
+        for detail in details.operations:
+            if detail.label == str(id_order) and detail.status == 'success':
+                order = await self.get_instance(id_instance=id_order)
+                order.status = OrderStatus.assembly
+                await self.manager.session.commit()
 
     async def create(
             self,
@@ -41,12 +58,13 @@ class OrderService(ServiceBase):
 
         data = (await self.validate_data(None, data)).dict(exclude_unset=True) if data else dict()
 
+        payment_method = data.get("payment_method")
         order = await self.manager.create(
             self.Model,
             data_create={
                 "id_user": self.id_user,
-                "payment_method": data.get("payment_method"),
-                "status": OrderStatus.assembly,
+                "payment_method": payment_method,
+                "status": OrderStatus.assembly if payment_method == 'cash' else OrderStatus.not_paid,
             }
         )
 
@@ -75,25 +93,22 @@ class OrderService(ServiceBase):
                 product.is_active = False
 
         if order.payment_method == self.PAYMENT_CARD:
-            user = await user_service.get_instance(id_instance=self.id_user)
-            base_url = "https://yoomoney.ru/quickpay/confirm"
-            params = {
-                "receiver": {settings_app.YOOMONEY_RECEIVER},
-                f"&formcomment=Оплата заказа №{order.id} пользователя {user.email}"
-                f"&short-dest=Оплата заказа №{order.id}"
-                "quickpay-form": "shop",
-                "targets": "Оплата заказа",
-                "paymentType": "AC",
-                "sum": data['cost'],
-                "label": f"№ {order.id}",
-                "successURL": f"{settings_app.BASE_URL}/api/v1/cart/payment"
-            }
-            query_string = urllib.parse.urlencode(params)
-            payment_url = f"{base_url}?{query_string}"
-            return OrderPaymentOut(url=payment_url)
+            user = self.client.account_info()
+
+            quickpay = Quickpay(
+                receiver=f"{user.account}",
+                quickpay_form="shop",
+                targets="Sponsor this project",
+                paymentType="SB",
+                sum=data['cost'],
+                label=f"{order.id}"
+            )
+            task = asyncio.create_task(self.check_payment(id_order=order.id, sleep_seconds=settings_app.TIME_FOR_PAYMENT))
+            self.BACKGROUND_TASKS.add(task)
+            task.add_done_callback(self.BACKGROUND_TASKS.discard)
 
         await order_item_service.manager.session.commit()
-        return OrderPaymentOut(url=None)
+        return OrderPaymentOut(url=quickpay.redirected_url if quickpay else None)
 
     async def get_instance(self, id_instance: int) -> Model:
         return (await self.manager.execute(

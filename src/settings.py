@@ -26,8 +26,10 @@ class SettingsApp(BaseSettings):
     BASE_URL = ''
     CATEGORIES: str = ''
     URL_ADMIN = ''
+    TOKEN_PAYMENT = ''
     PATH_BASE = ''
     PATH_USER = ''
+    TIME_FOR_PAYMENT = 600
     PATH_STORAGE_BASE = FileSystemStorage(path='/techzone/static')
     PATH_STORAGE_USER = FileSystemStorage(path='/techzone/media/users')
     NAME_SERVICE: str = _NAME_SERVICE_DEFAULT
