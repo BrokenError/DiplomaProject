@@ -35,21 +35,22 @@ services:
     networks:
       - techzone
 
-  nginx:
-    container_name: nginx_techzone
-    build:
-      dockerfile: src/nginx/Dockerfile
-    ports:
-      - "80:80"
-      - "443:443"
-    restart: always
-    volumes:
-      - ./techzone/letsencrypt:/etc/letsencrypt
-      - ./techzone/static:/static
-      - ./techzone/media:/media
-
-    networks:
-      - techzone
+#  nginx:
+#    container_name: nginx_techzone
+#    build:
+#      context: src/
+#      dockerfile: nginx/Dockerfile
+#    ports:
+#      - "80:80"
+#      - "443:443"
+#    restart: always
+#    volumes:
+#      - ./techzone/letsencrypt:/etc/letsencrypt
+#      - ./techzone/static:/src/static
+#      - ./techzone/media:/src/media
+#
+#    networks:
+#      - techzone
 
   redis:
     container_name: redis_techzone

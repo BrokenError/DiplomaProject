@@ -12,6 +12,7 @@ class FilterTelevision:
     price__lte: Optional[int] = Query(default=None, alias='price_lte')
     brand__in_arr: Optional[str] = Query(default=None, alias='brand_in')
     model__in_arr: Optional[str] = Query(default=None, alias='model_in')
+    date_release__yyyy_in: Optional[str] = Query(default=None, alias='date_release_in')
     material__in_arr: Optional[str] = Query(default=None, alias='material_in')
     screen_diagonal__in_arr: Optional[str] = Query(default=None, alias='screen_diagonal_in')
     screen_resolution__in_arr: Optional[str] = Query(default=None, alias='screen_resolution_in')

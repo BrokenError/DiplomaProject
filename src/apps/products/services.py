@@ -6,9 +6,9 @@ from typing import Optional, List, Tuple, Dict, Any
 from fastapi import HTTPException
 from fuzzywuzzy import process
 from pydantic.types import Decimal
-from sqlalchemy import func, select, extract
-from sqlalchemy.orm import selectinload
-from sqlalchemy.sql import Select
+from sqlalchemy import func, select, extract, Float
+from sqlalchemy.orm import selectinload, aliased
+from sqlalchemy.sql import Select, cast, case
 
 from apps.accessories.queryparams import FilterAccessory
 from apps.commons.managers.base import ManagerBase
@@ -23,9 +23,9 @@ from apps.smartphones.queryparams import FilterSmartphone
 from apps.smartwatches.queryparams import FilterSmartwatch
 from apps.tablets.queryparams import FilterTablet
 from apps.televisions.queryparams import FilterTelevision
-from db.models import Product, Review, Tablet, Television, Smartphone, Smartwatch, Laptop, User, Accessory
+from db.models import Product, Review, Tablet, Television, Smartphone, Smartwatch, Laptop, User, Accessory, Photo, \
+    product_photo
 from field_names_ru import NameFilters
-from settings import settings_app
 
 logger = logging.getLogger('products')
 
@@ -45,30 +45,32 @@ class ProductService(ServiceBase):
         await self.manager.session.refresh(product)
         return product
 
+    async def get_photos_slider(self):
+        banner_photos_query = (
+            select(
+                Photo.url.label('link'),
+                func.max(Product.id).label('id_product')
+            )
+            .select_from(Photo)
+            .join(product_photo, Photo.id == product_photo.c.id_photo)
+            .join(Product, product_photo.c.id_product == Product.id)
+            .where(Photo.is_banner == True)
+            .where(Product.is_deleted == False)
+            .group_by(Photo.id)
+        )
+        banner_photos_result = await self.manager.session.execute(banner_photos_query)
+        banner_photos_data = banner_photos_result.fetchall()
+
+        return banner_photos_data
+
     @staticmethod
     def format_price_with_spaces(number):
         return "{:,.0f}".format(number).replace(",", " ")
 
     @staticmethod
-    def best_price(price) -> int:
-        if price < 100:
-            return round(price, -1) if price >= 10 else round(price)
-
-        magnitude = 10 ** (len(str(int(price))) - 2)
-
-        base_price = (price // magnitude) * magnitude
-
-        min_diff = float('inf')
-        best_price = base_price
-
-        for ending in settings_app.PSYCHOLOGICAL_ENDINGS:
-            candidate_price = base_price + ending
-            diff = abs(candidate_price - price)
-
-            if diff < min_diff:
-                min_diff = diff
-                best_price = candidate_price
-        return best_price
+    def best_price(price):
+        magnitude = 10 ** (len(str(price)) - 1)
+        return (price // magnitude) * magnitude
 
     def create_dynamic_price_ranges(self, min_price, max_price, num_ranges=6):
         log_min_price = math.log10(min_price)
@@ -113,16 +115,28 @@ class ProductService(ServiceBase):
 
         min_max_prices = await self.manager.execute(
             select(
-                func.min(self.Model_filter.price).label("min_price"),
-                func.max(self.Model_filter.price).label("max_price")
-            )
+                func.count().label('count_prices'),
+                func.min(
+                    case(
+                        [(self.Model_filter.discount > 0,
+                          self.Model_filter.price * (1 - cast(self.Model_filter.discount, Float) / 100))],
+                        else_=self.Model_filter.price
+                    )
+                ).label("min_price"),
+                func.max(
+                    case(
+                        [(self.Model_filter.discount > 0,
+                          self.Model_filter.price * (1 - cast(self.Model_filter.discount, Float) / 100))],
+                        else_=self.Model_filter.price
+                    )
+                ).label("max_price")
+            ).where(self.Model_filter.is_deleted == False)
         )
-        min_price, max_price = min_max_prices.fetchone()
+        count_prices, min_price, max_price = min_max_prices.fetchone()
 
         if min_price is None or max_price is None:
             return {}
-
-        price_ranges = self.create_dynamic_price_ranges(min_price, max_price)
+        price_ranges = self.create_dynamic_price_ranges(min_price, max_price, num_ranges=2 if count_prices < 6 else 6)
 
         filter_fields = model_data[model][0].dict()
         filters = []
@@ -141,7 +155,12 @@ class ProductService(ServiceBase):
                     func.json_agg(func.distinct(extract('year', getattr(self.Model_filter, field_key)))).label(
                         f"{field_key}_options"))
 
-            result = await self.manager.execute(query.where(getattr(self.Model_filter, field_key) is not None))
+            result = await self.manager.execute(
+                query.where(
+                    getattr(self.Model_filter, field_key) is not None,
+                    self.Model_filter.is_deleted == False
+                )
+            )
             variants = result.scalar_one_or_none() or []
             filters.append({
                 "id": field_key,
@@ -204,9 +223,6 @@ class ProductService(ServiceBase):
 
         for item in products['items']:
             await self.get_rating_and_reviews_count(item)
-            if self.id_user:
-                await self.check_product_in_cart(item)
-                await self.check_favourites(item, favourite_service=favourite_service)
         return products
 
     async def get_suggestions(self, query: str):
@@ -253,27 +269,122 @@ class ProductService(ServiceBase):
         return instance
 
     async def get_memory_variations(self, instance: Model) -> Model:
-        data = (await self.manager.execute(
-            self.select_visible(self.Model.id, self.Model.memory)
-            .where(self.Model.model == instance.model).distinct())).all()
+        product_alias = aliased(self.Model)
 
-        memory_variations = {}
-        for data_product in data:
-            memory_variations.update({f"{data_product.memory}": data_product.id})
-        instance.memory_variations = memory_variations
+        subquery = (
+            select(
+                product_alias.id,
+                product_alias.memory,
+                func.row_number().over(
+                    partition_by=product_alias.memory,
+                    order_by=case(
+                        (product_alias.color_main == instance.color_main, 1),
+                        else_=0
+                    ).desc()
+                ).label('row_num')
+            )
+            .where(
+                product_alias.type == instance.type,
+                product_alias.model == instance.model,
+                product_alias.brand == instance.brand,
+                product_alias.is_deleted == False
+            )
+            .subquery()
+        )
+
+        final_query = select(
+            subquery.c.id,
+            subquery.c.memory
+        ).where(subquery.c.row_num == 1).order_by(subquery.c.memory)
+
+        memory_variations_with_ids = (await self.manager.execute(final_query)).all()
+
+        instance.memory_variations = [
+            {
+                'memory': row.memory,
+                'id_product': row.id
+            }
+            for row in memory_variations_with_ids
+        ]
         return instance
 
     async def get_color_variations(self, instance: Model) -> List:
-        color_variations = (
-            await self.manager.execute(
-                select(Product.color_main, Product.color_hex, Product.id)
-                .distinct()
-                .where(Product.type == instance.type)
+        product_alias = aliased(self.Model)
+
+        if not self.Model == Accessory:
+            subquery = (
+                select(
+                    product_alias.id,
+                    product_alias.color_main,
+                    product_alias.color_hex,
+                    product_alias.memory,
+                    case(
+                        (product_alias.memory == instance.memory, 1),
+                        else_=0
+                    ).label('preferred')
+                )
+                .where(
+                    product_alias.type == instance.type,
+                    product_alias.model == instance.model,
+                    product_alias.brand == instance.brand,
+                    product_alias.is_deleted == False,
+                )
+                .order_by(
+                    product_alias.color_main,
+                    product_alias.color_hex,
+                    case(
+                        (product_alias.memory == instance.memory, 1),
+                        else_=0
+                    ).desc()
+                )
+                .distinct(
+                    product_alias.color_main,
+                    product_alias.color_hex
+                )
+                .subquery()
             )
-        ).all()
+
+        else:
+            subquery = (
+                select(
+                    product_alias.id,
+                    product_alias.color_main,
+                    product_alias.color_hex,
+                )
+                .where(
+                    product_alias.type == instance.type,
+                    product_alias.model == instance.model,
+                    product_alias.brand == instance.brand,
+                    product_alias.is_deleted == False
+                )
+                .order_by(
+                    product_alias.color_main,
+                    product_alias.color_hex,
+                )
+                .distinct(
+                    product_alias.color_main,
+                    product_alias.color_hex
+                )
+                .subquery()
+            )
+
+        final_query = select(
+            subquery.c.color_main,
+            subquery.c.color_hex,
+            subquery.c.id
+        )
+
+        color_variations_with_ids = (await self.manager.execute(final_query)).all()
+
         instance.color_variations = [
-            {'color': color, 'hex': hex_value, 'id_product': id_prod} for color, hex_value, id_prod in color_variations
+            {
+                'color_main': row.color_main,
+                'color_hex': row.color_hex,
+                'id_product': row.id
+            }
+            for row in color_variations_with_ids
         ]
+
         return instance
 
     async def get_reviews(self, instance: Model) -> Model:
@@ -304,30 +415,30 @@ class ProductService(ServiceBase):
             self.select_visible()
             .options(selectinload(Product.photos))
             .where(self.Model.id == id_instance))).scalars().first()
+        instance.photos = [photo for photo in instance.photos if not photo.is_banner]
 
         if not instance:
             raise HTTPException(status_code=404, detail="Такого товара не существует")
 
         await self.get_rating_and_reviews_count(instance)
         await self.get_reviews(instance)
-        if self.id_user:
-            await self.check_favourites(instance, favourite_service)
-            await self.check_product_in_cart(instance)
+        await self.get_color_variations(instance)
+        instance.memory_variations = None
         if hasattr(instance, 'memory'):
             await self.get_memory_variations(instance)
-        await self.get_color_variations(instance)
         return instance
 
     async def get_instance(self, id_instance: int) -> Model:
-        return (await self.manager.execute(
+        instance = (await self.manager.execute(
             self.select_visible()
             .options(selectinload(Product.photos))
             .where(self.Model.id == id_instance)
         )).scalars().first()
+        instance.photos = [photo for photo in instance.photos if not photo.is_banner]
+        return instance
 
     async def get_type_product(self, id_instance: int) -> Model:
-        product = await super().get(id_instance=id_instance)
-        return product
+        return await super().get(id_instance=id_instance)
 
     async def get(
             self,
@@ -337,33 +448,30 @@ class ProductService(ServiceBase):
     ) -> Model:
         product = await super().get(id_instance=id_instance)
         await self.get_rating_and_reviews_count(product)
-        if self.id_user:
-            await self.check_favourites(product, favourite_service)
-            await self.check_product_in_cart(product)
         return product
 
     async def list_product(
-        self,
-        favourite_service: FavouriteService,
-        *,
-        filters: Optional[List] = None,
-        ordering: Optional[Direction] = None,
-        pagination: Pagination = None
+            self,
+            favourite_service: FavouriteService,
+            *,
+            filters: Optional[List] = None,
+            ordering: Optional[Direction] = None,
+            pagination: Pagination = None
     ):
         query = self.select_visible()
         result = await self.list(filters=filters, ordering=ordering, pagination=pagination, query=query)
-        if self.id_user:
-            for product in result['items']:
-                await self.check_favourites(product, favourite_service)
-                await self.check_product_in_cart(product)
         for product in result['items']:
             await self.get_rating_and_reviews_count(product)
         return result
 
     async def get_fragment(self, query: Select, limit: Optional[int], offset: int) -> Tuple[List, int]:
         query_count = select(func.count(1)).select_from(query)
-        return (
-            (await self.manager.execute(
-                query.limit(limit).offset(offset).options(selectinload(Product.photos)))).scalars().all(),
-            (await self.manager.execute(query_count)).scalar()
-        )
+        products = (await self.manager.execute(
+            query
+            .limit(limit)
+            .offset(offset)
+            .options(selectinload(Product.photos)))
+        ).scalars().all()
+        for product in products:
+            product.photos = [photo for photo in product.photos if not photo.is_banner]
+        return products, (await self.manager.execute(query_count)).scalar()

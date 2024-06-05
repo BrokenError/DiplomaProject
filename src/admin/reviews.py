@@ -12,8 +12,8 @@ from field_names_ru import ReviewFields
 
 
 class ReviewAdmin(ModelView, model=Review):
+    column_list = ['id', 'user', 'product', 'date_created', 'rating', 'text']
     column_labels = ReviewFields
-    column_exclude_list = ['id_user', 'id_product']
     form_excluded_columns = ['date_created']
     column_searchable_list = [Review.text, Review.id_product, Review.id_user]
     column_default_sort = [(Review.id, True)]

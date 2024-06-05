@@ -27,7 +27,7 @@ class UserAdminSchema(BaseModel):
     phone_number: Optional[str] = Field()
     photo_url: Optional[UploadFile] = Field(None)
 
-    @validator("email", pre=True)
+    @validator("email", pre=True, check_fields=False)
     def validate_email(cls, value, field) -> str:
         with validation_context(
                 field=UserFields[field.name],

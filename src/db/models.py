@@ -98,6 +98,7 @@ class Photo(Base):
 
     id = Column(Integer, primary_key=True)
     url = Column(FileType(storage=settings_app.PATH_STORAGE_BASE), nullable=False)
+    is_banner = Column(Boolean, default=False, nullable=False, index=True)
 
     products = relationship("Product", secondary="product_photo", back_populates="photos")
 
@@ -124,9 +125,9 @@ class Product(CustomBase):
     thickness = Column(Numeric(precision=8, scale=2), nullable=False)
     description = Column(String, nullable=True)
     price = Column(Numeric(precision=10, scale=2), nullable=False)
-    discount = Column(Integer, nullable=True, default=0)
-    is_active = Column(Boolean, default=True)
-    is_deleted = Column(Boolean, default=False)
+    discount = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    is_deleted = Column(Boolean, nullable=False, default=False)
     quantity = Column(Integer, nullable=True, default=1)
     equipment = Column(String, nullable=True)
 
@@ -147,7 +148,7 @@ class Technics(Product):
     __abstract__ = True
 
     operating_system = Column(String, nullable=False)
-    memory_ram = Column(Integer, nullable=True)
+    memory_ram = Column(Numeric(precision=5, scale=3), nullable=True)
     memory = Column(Integer, nullable=True)
     matrix_frequency = Column(Integer, nullable=False)
     matrix_type = Column(String, nullable=False)

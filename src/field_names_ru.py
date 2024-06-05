@@ -241,3 +241,12 @@ NameFilters = {
     "video_card_model": "Модель видеокарты",
     "matrix_type": "Тип матрицы",
 }
+
+TypeField = {
+    "accessory": "Аксессуар",
+    "tablet": "Планшет",
+    "smartphone": "Смартфон",
+    "smartwatch": "Часы",
+    "laptop": "Ноутбук",
+    "television": "Телевизор"
+}

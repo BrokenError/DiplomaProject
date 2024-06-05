@@ -75,24 +75,26 @@ class FavouriteService(ServiceBase):
     ):
         result = await self.list(filters=filters, orderings=orderings, pagination=pagination, query=query)
         for order_item in result['items']:
+            if order_item.product.is_deleted is True:
+                await self.delete(id_instance=order_item.product.id)
             await self.get_rating_and_reviews_count(order_item.product)
-            await self.check_product_in_cart(order_item.product)
-            order_item.product.is_favourite = True
         return result
 
     async def get_fragment(self, query: Select, limit: Optional[int], offset: int) -> Tuple[List, int]:
         query_count = select(func.count(1)).select_from(query)
-        return (
-            (await self.manager.execute(
+        products = (
+            await self.manager.execute(
                 query.options(
                     selectinload(Favourite.product).selectinload(Product.photos)
                 )
                 .join(Favourite.product)
                 .filter(Favourite.id_user == int(self.id_user))
                 .offset(offset)
-            )).scalars().all(),
-            (await self.manager.execute(query_count)).scalar()
-        )
+            )).scalars().all()
+        for product in products:
+            product.photos = [photo for photo in product.photos if not photo.is_banner]
+
+        return products, (await self.manager.execute(query_count)).scalar()
 
     async def get_rating_and_reviews_count(self, instance: Model) -> Model:
         reviews_count_subquery = (

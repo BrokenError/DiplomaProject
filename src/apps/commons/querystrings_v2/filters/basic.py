@@ -3,6 +3,7 @@ import json
 from sqlalchemy import not_, and_, or_, func
 
 from apps.commons.querystrings_v2.processor import CQuery
+from db.models import Product
 
 
 class QueryFilter(CQuery):
@@ -57,7 +58,10 @@ class QueryFilter(CQuery):
 
     @staticmethod
     def __lte(field, value):
-        return field <= value
+        return or_(
+            and_(Product.discount > 0, field * (1 - Product.discount / 100.0) - 1 <= value),
+            and_(Product.discount == 0, field <= value)
+        )
 
     @staticmethod
     def __gt(field, value):
@@ -65,7 +69,10 @@ class QueryFilter(CQuery):
 
     @staticmethod
     def __gte(field, value):
-        return field >= value
+        return or_(
+            and_(Product.discount > 0, field * (1 - Product.discount / 100.0) + 1 >= value),
+            and_(Product.discount == 0, field >= value)
+        )
 
     @staticmethod
     def __present(field, value):
@@ -337,7 +344,7 @@ class QueryFilter(CQuery):
 
     @staticmethod
     def __yyyy_in(field, values):
-        return or_(*[field.like(val) for val in values])
+        return or_(*[func.extract('year', field) == year for year in json.loads(values)])
 
     @staticmethod
     def __dd_lt(field, value):

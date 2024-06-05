@@ -17,6 +17,7 @@ class OrderStatus(str, Enum):
     assembly = 'assembly'
     ready = 'ready'
     got = 'got'
+    not_paid = 'not_paid'
 
 
 class OrderPayment(str, Enum):

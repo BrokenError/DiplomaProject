@@ -111,3 +111,16 @@ async def get_filters_form(
         product_service: ProductService = Depends(ProductService.from_request_protected)
 ):
     return await product_service.get_filters_form(model)
+
+
+@router.get(
+    path='/banners',
+    # response_model=FilterProduct,
+    name='Get banners',
+    description='Get banners',
+    tags=['Products']
+)
+async def get_list_banners(
+        product_service: ProductService = Depends(ProductService.from_request_protected)
+):
+    return await product_service.get_photos_slider()

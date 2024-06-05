@@ -7,7 +7,6 @@ from sqlalchemy.sql.elements import BinaryExpression
 from apps.commons.querystrings_v2.exceptions import ExceptionQuerystring
 from apps.commons.querystrings_v2.schemas import Direction
 
-
 if TYPE_CHECKING:
     class QueryParams:
 
